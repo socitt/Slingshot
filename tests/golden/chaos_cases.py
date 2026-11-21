@@ -12,7 +12,7 @@ from chaos.logistic import feigenbaum_estimates, logistic, logistic_deriv, super
 from chaos.lorenz import lorenz, lorenz_jacobian, trajectory
 from chaos.lyapunov import lyapunov_map, lyapunov_spectrum
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / "data" / "chaos"
 
 
 def lorenz_short() -> dict:

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import functools
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -166,11 +167,17 @@ def run_episode(task: Task, policy: Policy, target: tuple[float, float],
         new_accs, near, dbody = _per_body_field(system, p[0], p[1], bpos)
         gx = sum(a[0] for a in new_accs)
         gy = sum(a[1] for a in new_accs)
+        v_old = v
         v = [vx + half * (gx + ax), vy + half * (gy + ay)]
-        # energy bookkeeping with the half-step velocity (exact for KDK)
+        # Energy bookkeeping. Over a KDK step v' - v = half*sum_j(a_j + a_j')
+        # + dt*thrust, and dKE = (v' - v).(v' + v)/2 exactly, so weighting
+        # each term by the step-average velocity attributes dKE to bodies
+        # and thrust with no residual. (Weighting by the half-step velocity
+        # leaves an O(dt^2 a^2) error that is huge on close passes.)
+        ux, uy = 0.5 * (v_old[0] + v[0]), 0.5 * (v_old[1] + v[1])
         for j in range(nb):
-            work[j] += half * ((accs[j][0] + new_accs[j][0]) * vx + (accs[j][1] + new_accs[j][1]) * vy)
-        thrust_work += dt * (ax * vx + ay * vy)
+            work[j] += half * ((accs[j][0] + new_accs[j][0]) * ux + (accs[j][1] + new_accs[j][1]) * uy)
+        thrust_work += dt * (ax * ux + ay * uy)
         accs = new_accs
 
         d = math.hypot(tx - p[0], ty - p[1])
@@ -235,9 +242,21 @@ def trio_field():
 #: Milestone 4: start on a tight orbit round the star, reach targets
 #: beyond the outer planet. The fuel budget covers a Hohmann-like climb
 #: (~0.35 delta-v) with margin, but not brute-force straight lines.
+def scatter(n: int, r_min: float, r_max: float, seed: int) -> tuple[tuple[float, float], ...]:
+    """``n`` seeded points in an annulus (a private RNG, never the global one)."""
+    rng = random.Random(seed)
+    pts = []
+    for _ in range(n):
+        r, a = rng.uniform(r_min, r_max), rng.uniform(0.0, 2.0 * math.pi)
+        pts.append((r * math.cos(a), r * math.sin(a)))
+    return tuple(pts)
+
+
+#: Trained on 24 targets: with 6, agents memorised routes (1/6 held-out
+#: targets reached); with 24 the same budget reaches 7/12 held-out.
 TRIO = Task(
     name="trio",
-    targets=ring(6, 2.4, phase=math.pi / 6),
+    targets=ring(24, 2.4, phase=math.pi / 24),
     start=(0.6, 0.0),
     start_vel=(0.0, math.sqrt(1.0 / 0.6)),
     dt=0.025,
@@ -251,12 +270,15 @@ TRIO = Task(
     vel_scale=1.5,
     accel_ref=1.0,
 )
-TRIO_HELDOUT = ring(6, 2.4)
+#: Held out: random radii as well as angles, so not just ring gaps.
+TRIO_HELDOUT = scatter(12, 2.2, 2.6, seed=1234)
 
 #: TRIO on a budget: 0.45 delta-v barely covers the climb, and arriving
 #: early is worth less than saving fuel, so energy from a planet flyby
 #: (positive ``Result.work`` for a planet) pays.
-ASSIST = Task(**{**TRIO.__dict__, "name": "assist", "fuel": 0.45, "fuel_weight": 0.5})
+ASSIST = Task(**{**TRIO.__dict__, "name": "assist", "fuel": 0.45, "fuel_weight": 0.5,
+                  "targets": ring(6, 2.4, phase=math.pi / 6)})
+ASSIST_HELDOUT = ring(6, 2.4)
 
 TASKS = {"free": FREE, "trio": TRIO, "assist": ASSIST}
-HELDOUT = {"free": FREE_HELDOUT, "trio": TRIO_HELDOUT, "assist": TRIO_HELDOUT}
+HELDOUT = {"free": FREE_HELDOUT, "trio": TRIO_HELDOUT, "assist": ASSIST_HELDOUT}

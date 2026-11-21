@@ -22,8 +22,9 @@ this repo, the entry says so.
 | M3 MLP + neuroevolution | 0 | 4 | 1 | 1 | 6 | 0 | 0 |
 | M4 three-body field + M5 replay | 5 | 3 | 3 | 1 | 12 | 0 | 0 |
 | M6 numpy backend | 0 | 4 | 1 | 2 | 7 | 0 | 0 |
+| Post-M6: generalisation, fixes, #14 probes | 1 | 10 | 1 | 1 | 13 | 0 | 0 |
 
-Running total: **50**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 9 exited 1: genuine test/build failures, deliberate probes, and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
+Running total: **63**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 13 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -36,6 +37,7 @@ Running total: **50**, including one run under a numpy-free venv (logged by hand
 | 2026-11-21 | `lirk verify --sample 5` (seed 745970699, 61 cached results) | 5 verified, 0 stale, 0 not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` (seed 1218428339) | interrupted by my own `\| head -1` (SIGPIPE) — no result |
 | 2026-11-21 | `lirk verify --sample 5` (seed 3760781111, 62 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
+| 2026-11-21 | `lirk verify --sample 5` (seed 2024422273, 64 cached results) | 5 verified, 0 stale, 0 not cached — OK |
 
 ## Cache-correctness probes
 
@@ -46,6 +48,17 @@ Running total: **50**, including one run under a numpy-free venv (logged by hand
   `cached //tests/golden:physics_golden_test`, i.e. it returned to the
   previous success, as documented ("reverting an edit returns you to the
   cached result").
+- **Per-suite golden data directories invalidate per suite — correct.**
+  After splitting `tests/golden/data/` into `physics/`, `chaos/` and
+  `agents/` (each declared as its own `data` directory), adding
+  `tests/golden/data/agents/zz_probe.json` re-ran exactly the four
+  targets reading agent goldens (`//cli:replay_cli_test` via its dep on
+  `//tests/golden:agent_cases`, `//npbackend:batch_test`,
+  `//tests/golden:agent_golden_test`, `//tests/golden:regen_test`);
+  physics and chaos goldens stayed cached. Removing the file returned
+  everything to `cached`. Before the split, regenerating one agent
+  re-ran every golden test: correct but coarse, and the fix was in this
+  repo's layout, not lirk.
 - **Adding `pytest.ini` at the root re-ran exactly the pytest targets**
   and left the unittest target (`//physics:kepler_unittest`) cached.
   Correct.

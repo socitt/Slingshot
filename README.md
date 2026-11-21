@@ -48,10 +48,11 @@ an independent cross-check.
    others reached 0.90–0.99 (held-out 0.68–0.89).
 4. ✅ Navigation in a three-body field (star + two planets, chaotic:
    coasting probes 1e-9 apart diverge ~1e8 in 40 time units).
-   - `trio` (fuel 1.0): the golden agent reaches 5/6 training targets
-     (score 0.810 vs 0.191 for zero thrust; PD controllers crash or
-     run dry). It learned routes, not a general controller: held-out
-     targets 1/6.
+   - `trio` (fuel 1.0, 24 targets on a ring beyond the outer planet):
+     the golden agent reaches 19/24 (score 0.829 vs 0.191 for zero
+     thrust; PD controllers crash or run dry) and 7/12 seeded random
+     held-out targets (0.753). Trained on 6 targets, the same method
+     memorised routes and reached 1/6 held-out; 12 targets gave ~3/6.
    - `assist` (fuel 0.45, fuel penalty 0.5): reaches 3/6 (0.306). In
      one of them the outer planet supplies +0.38 energy, as much as the
      engine — a gravity assist nobody programmed. GA runs collapse to
@@ -82,9 +83,9 @@ python3 -m cli.chaos_demo bifurcation
 
 ## Open problems
 
-- Field agents overfit their six targets. More targets, a time/phase
-  input, or a richer net would likely help; each costs training time
-  that matters on iSH.
+- Field agents still miss ~40% of held-out targets. A time/phase input
+  or a richer net are the next things to try (the numpy backend makes
+  such sweeps minutes, not hours).
 - A better escape from the do-nothing optimum on `assist` (novelty
   search, or shaping on energy gained) is the obvious next experiment.
 

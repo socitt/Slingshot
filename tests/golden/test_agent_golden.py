@@ -72,11 +72,14 @@ def test_field_agent_rescores(name, task):
 
 def test_trio_agent_navigates_the_field():
     g = load_golden("trio")
-    assert sum(g["reached"]) >= 5            # of 6 training targets
+    n = len(g["reached"])
+    assert n == 24
+    assert sum(g["reached"]) >= 18           # of 24 training targets
     assert g["score"] > ZERO_THRUST["trio"] + 0.5
-    # Honest limitation, pinned so a better agent shows up as a change:
-    # it has learned routes, not a general controller.
-    assert sum(g["heldout_reached"]) <= 3
+    # Generalisation: 12 seeded random held-out targets (random radius
+    # too). The 6-target predecessor reached 1/6 of its held-out set.
+    assert sum(g["heldout_reached"]) >= 6
+    assert g["heldout_score"] > 0.6
 
 
 def test_assist_agent_beats_doing_nothing_and_uses_a_planet():
@@ -99,3 +102,17 @@ def test_no_episode_grazes_the_capture_radius(name, task):
         margin = min([margin] + [abs(math.dist(f["probe"], t) - task.target_radius)
                                  for f in res.frames])
     assert margin > 1e-7
+
+
+@pytest.mark.parametrize("name,task", [("trio", TRIO), ("assist", ASSIST)])
+def test_golden_episodes_are_not_hypersensitive(name, task):
+    """Platform-independent version of the rescoring tolerance: nudge
+    the probe's start by 1e-12 (far above any ulp-level platform
+    difference) and every stored episode's score must move < 1e-6.
+    Random genomes can fail this (chaotic loitering); the goldens don't."""
+    import dataclasses
+    net = MLP.from_dict(load_golden(name)["mlp"])
+    nudged = dataclasses.replace(task, start=(task.start[0] + 1e-12, task.start[1]))
+    for t in task.targets + HELDOUT[name]:
+        a, b = run_episode(task, net, t), run_episode(nudged, net, t)
+        assert abs(a.score - b.score) < 1e-6, t

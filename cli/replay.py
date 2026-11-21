@@ -19,7 +19,7 @@ from env.training import load_agent
 from render.canvas import terminal_width, use_color
 from render.replay import CLEAR, HOME, render_episode
 
-GOLDEN = Path(__file__).resolve().parent.parent / "tests" / "golden" / "data"
+GOLDEN = Path(__file__).resolve().parent.parent / "tests" / "golden" / "data" / "agents"
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -15,7 +15,7 @@ from pathlib import Path
 from physics.orbits import figure_eight, pythagorean, two_body
 from physics.simulate import simulate
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / "data" / "physics"
 
 CASES = {
     # name: (builder, h, steps, method, every)

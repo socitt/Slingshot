@@ -41,15 +41,18 @@ def test_planets_stay_bound_on_perturbed_orbits():
 
 def test_work_bookkeeping_balances_kinetic_energy():
     """sum(work by each body) + thrust work == change in kinetic energy,
-    up to the O(dt^2) KDK residual. Checked with thrust on, in the field."""
+    exactly (to rounding), with thrust on, in the field -- including
+    episodes with close passes, where an earlier half-step-velocity
+    version was off by 7 units."""
     def wobble(obs):
         return [0.3 * math.sin(7 * obs[0]), 0.4 * math.cos(5 * obs[1])]
 
-    res = run_episode(TRIO, wobble, TRIO.targets[0])
-    assert res.steps > 50 and res.thrust_work != 0.0
-    v0, v1 = TRIO.start_vel, res.final_vel
-    dke = 0.5 * (v1[0] ** 2 + v1[1] ** 2) - 0.5 * (v0[0] ** 2 + v0[1] ** 2)
-    assert sum(res.work) + res.thrust_work == pytest.approx(dke, abs=1e-3)
+    for target in TRIO.targets[:8]:
+        res = run_episode(TRIO, wobble, target)
+        assert res.steps > 20 and res.thrust_work != 0.0
+        v0, v1 = TRIO.start_vel, res.final_vel
+        dke = 0.5 * (v1[0] ** 2 + v1[1] ** 2) - 0.5 * (v0[0] ** 2 + v0[1] ** 2)
+        assert sum(res.work) + res.thrust_work == pytest.approx(dke, abs=1e-9)
 
 
 def test_thrust_work_accounts_for_a_burn():
@@ -79,5 +82,5 @@ def test_naive_controllers_fail_in_the_field():
         dx, dy, vx, vy = obs[0] * 3.0, obs[1] * 3.0, obs[2] * 1.5, obs[3] * 1.5
         return [3 * dx - 3 * vx, 3 * dy - 3 * vy]
     assert evaluate(TRIO, pd) < 0.2
-    assert sum(run_episode(TRIO, pd, t).reached for t in TRIO.targets) <= 1
-    assert len(TRIO_HELDOUT) == 6
+    assert sum(run_episode(TRIO, pd, t).reached for t in TRIO.targets) <= len(TRIO.targets) // 4
+    assert len(TRIO_HELDOUT) == 12
