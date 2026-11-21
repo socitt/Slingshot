@@ -7,7 +7,9 @@ output. Nothing is worked around silently; where a workaround exists in
 this repo, the entry says so.
 
 - lirk version: `lirk 1.0.0`, installed with `pip install -e ../lirk`
-  (checkout at commit `584a733`).
+  (checkout at commit `584a733`), through finding #14. Since
+  2026-11-21: `lirk 1.0.1`, lirk `main` at `53fab38` (includes PR #3,
+  "Fix the slingshot findings"). See "Upgrade to lirk 1.0.1" below.
 - Python 3.13.18, pytest 9.1.1, Linux container (not yet on iSH).
 - Raw log: [`docs/.lirk-invocations.log`](.lirk-invocations.log) — one
   line per `lirk` invocation (UTC time, exit code, seconds, args),
@@ -23,8 +25,9 @@ this repo, the entry says so.
 | M4 three-body field + M5 replay | 5 | 3 | 3 | 1 | 12 | 0 | 0 |
 | M6 numpy backend | 0 | 4 | 1 | 2 | 7 | 0 | 0 |
 | Post-M6: generalisation, fixes, #14 probes | 1 | 10 | 1 | 1 | 13 | 0 | 0 |
+| lirk 1.0.1 upgrade check | 1 | 4 | 1 | 1 | 7 | 0 | 0 |
 
-Running total: **63**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 13 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
+Running total: **70**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -38,6 +41,7 @@ Running total: **63**, including one run under a numpy-free venv (logged by hand
 | 2026-11-21 | `lirk verify --sample 5` (seed 1218428339) | interrupted by my own `\| head -1` (SIGPIPE) — no result |
 | 2026-11-21 | `lirk verify --sample 5` (seed 3760781111, 62 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` (seed 2024422273, 64 cached results) | 5 verified, 0 stale, 0 not cached — OK |
+| 2026-11-21 | `lirk verify --sample 5` on lirk 1.0.1 (seed 3991276520, 74 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 
 ## Cache-correctness probes
 
@@ -80,7 +84,7 @@ out-of-repo `data`).
 
 ### 1. BUG (high): root `conftest.py` is fingerprinted but never loaded by pytest
 
-*Status: open in lirk. Worked around in this repo with a root `pytest.ini` (explicit, commented).*
+*Status: **fixed in lirk 1.0.1** (PR #3), verified 2026-11-21 — see "Upgrade to lirk 1.0.1". The root `pytest.ini` stays (comment updated) so plain pytest behaves the same from any directory.*
 
 The docs say "Fixtures, `assert` rewriting and `conftest.py` all work as
 usual" and that "every `conftest.py` ... between the package and the
@@ -154,6 +158,8 @@ uses all four.
 
 ### 5. `lirk fix --dry-run` labels every line `fixed`
 
+*Status: fixed in 1.0.1 — now `would fix //env:backend_test: would add :backend`.*
+
 ```
 $ lirk fix --dry-run
   fixed  //physics:conservation_test: would add :orbits, :simulate
@@ -184,6 +190,10 @@ Left as lirk wrote it.
 
 ### 7. `lirk verify` labels libraries `(test)`, and "not cached" doesn't say which
 
+*Status: fixed in 1.0.1 per PR #3. Seen: entries labelled `(build)`.
+Not yet seen: a `(tests)` entry or a named not-cached target, since the
+one 1.0.1 sample had neither.*
+
 ```
 $ lirk verify --sample 5
 lirk: sampling 5 of 15 cached results (seed 1720564241)
@@ -204,6 +214,12 @@ name the target (here it was `//tests/golden:regen_physics`, which no
 `lirk test` scope ever builds).
 
 ### 8. `build` and `test` don't share library results
+
+*Status: fixed in 1.0.1 for libraries. Right after a green `lirk test
+//...`, `lirk build //...` printed `25 built, 24 cached`: the 24
+libraries were reused and the 25 test targets were re-validated. PR #3
+says a built test target never counts as tested; this run shows the
+reverse holds too.*
 
 A consequence of the mode-namespaced cache: immediately after a green
 `lirk test //...`, `lirk build //...` re-validated 12 of 14 targets
@@ -383,3 +399,52 @@ and for a library passed to `lirk test`, name the test targets that
 depend on it (`//physics:orbits_test`, `//physics:conservation_test`,
 ...) — that is almost always what was meant. `//physics:all` and
 `//tests/...` worked as documented.
+
+## Upgrade to lirk 1.0.1 (2026-11-21)
+
+`git checkout -B main origin/main` in `../lirk` (at `53fab38`: PR #3
+`be4a296` "Fix the slingshot findings", plus PR #4 metadata, 1.0.1),
+then `pip install -e ../lirk` → `lirk 1.0.1`.
+
+1. **Full re-run, as announced.** First `lirk test //...` on 1.0.1, tree
+   unchanged: `25 PASS, 24 built`, nothing cached, 18.8 s, `lirk: OK`.
+   (ACTION_VERSION 11 → 12 invalidates old results on purpose.) Output
+   now shows per-target durations, e.g. `PASS //physics:gravity_test (0.3s)`.
+2. **The root conftest now loads under lirk, proven without the
+   workaround.** I moved `pytest.ini` out of the repo temporarily and
+   appended a probe to `vecmath/test_vectors.py`:
+
+   ```python
+   def test_probe_unseeded_random():  # TEMPORARY probe
+       import random
+       random.random()
+   ```
+
+   ```
+   $ lirk test //vecmath:vectors_test //physics:gravity_test
+     PASS   //physics:gravity_test (0.3s)
+     FAIL   //vecmath:vectors_test (0.3s): 1 of 1 src files failed: test_vectors
+   rootdir: /home/user/Slingshot
+   E       AssertionError: use a seeded random.Random, not the global RNG
+   FAILED test_vectors.py::test_probe_unseeded_random - AssertionError: use a se...
+   ========================= 1 failed, 7 passed in 0.04s ==========================
+   lirk: 1/2 tests passed
+   lirk: FAILED
+   ```
+
+   rootdir is the repo root with no ini file involved. The global-RNG
+   guard fired, and `gravity_test`'s `rng` fixture (also from the root
+   conftest) resolved. On 1.0.0 both targets would have failed with
+   `fixture 'rng' not found`, and the guard would have been silently
+   inactive. The probe was reverted (`git diff` clean) and `pytest.ini`
+   restored with a comment saying the bug is fixed.
+3. **Restoring the edited `pytest.ini`** re-ran exactly the 23 pytest
+   targets. The 2 unittest targets and every library stayed cached.
+   The next run was fully cached.
+4. `lirk verify --sample 5`: 5 verified, 0 stale.
+
+Still open from this repo's list: #9 (subprocess entry-point tests
+need a hand-declared dep), #12 (`data` may escape the repo), #13
+(module-level skip reported as "contained no tests"), #14 ("did you
+mean"). PR #3 says its docs changes cover #2–#4; I haven't re-read
+the docs to check.
