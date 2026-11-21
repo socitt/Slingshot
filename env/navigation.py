@@ -66,7 +66,20 @@ class Rendezvous:
     delay: int = 0
 
 
-Target = "tuple[float, float] | Rendezvous"
+@dataclass(frozen=True)
+class Tour:
+    """Catch several bodies in order (a multi-stop rendezvous). The
+    observation always points at the current stop; catching the last
+    one completes the tour. ``delay`` works as for ``Rendezvous``."""
+    stops: tuple[int, ...]
+    delay: int = 0
+
+    def __post_init__(self):
+        if not self.stops:
+            raise ValueError("a tour needs at least one stop")
+
+
+Target = "tuple[float, float] | Rendezvous | Tour"
 
 
 @dataclass
@@ -78,6 +91,9 @@ class Result:
     steps: int
     fuel_used: float
     min_dist: float
+    #: stops caught (a single target counts as one stop); step of each catch
+    stops_done: int = 0
+    stop_steps: list = field(default_factory=list)
     #: work done on the probe by each body's gravity (positive = the
     #: body gave the probe energy: a gravity assist)
     work: list = field(default_factory=list)
@@ -140,16 +156,17 @@ def _per_body_field(system: System | None, px: float, py: float, pos) -> tuple[l
     return accs, near, math.sqrt(best_any)
 
 
-def target_at(task: Task, target, step: int) -> tuple[float, float]:
-    """Where the target is at ``step`` of an episode."""
-    if isinstance(target, Rendezvous):
+def target_at(task: Task, target, step: int, stop: int = 0) -> tuple[float, float]:
+    """Where the target (for a tour: stop number ``stop``) is at ``step``."""
+    if isinstance(target, (Rendezvous, Tour)):
         _, track = field_track(task)
         if not track:
-            raise ValueError("a Rendezvous target needs a field")
+            raise ValueError("a moving target needs a field")
         if target.delay > task.track_extra:
             raise ValueError(f"delay {target.delay} > track_extra {task.track_extra}")
+        body = target.stops[stop] if isinstance(target, Tour) else target.body
         b = track[target.delay + step]
-        return b[2 * target.body], b[2 * target.body + 1]
+        return b[2 * body], b[2 * body + 1]
     return target
 
 
@@ -157,7 +174,10 @@ def run_episode(task: Task, policy: Policy, target,
                 record: bool = False) -> Result:
     system, track = field_track(task)
     nb = system.n if system is not None else 0
-    off = target.delay if isinstance(target, Rendezvous) else 0
+    moving = isinstance(target, (Rendezvous, Tour))
+    off = target.delay if moving else 0
+    n_stops = len(target.stops) if isinstance(target, Tour) else 1
+    stop, stop_steps = 0, []
     bpos = track[off] if track else ()
 
     p, v = list(task.start), list(task.start_vel)
@@ -186,7 +206,7 @@ def run_episode(task: Task, policy: Policy, target,
         fuel_used += mag * dt
         if record:
             frames.append({"t": (step - 1) * dt, "probe": list(p), "bodies": list(bpos),
-                           "thrust": (ax, ay), "target": (tx, ty)})
+                           "thrust": (ax, ay), "target": (tx, ty), "stop": stop})
 
         # kick-drift-kick
         vx = v[0] + half * (g[0] + ax)
@@ -194,8 +214,8 @@ def run_episode(task: Task, policy: Policy, target,
         p = [p[0] + dt * vx, p[1] + dt * vy]
         if track:
             bpos = track[off + step]
-            if off or isinstance(target, Rendezvous):
-                tx, ty = target_at(task, target, step)
+            if moving:
+                tx, ty = target_at(task, target, step, stop)
         new_accs, near, dbody = _per_body_field(system, p[0], p[1], bpos)
         gx = sum(a[0] for a in new_accs)
         gy = sum(a[1] for a in new_accs)
@@ -215,8 +235,15 @@ def run_episode(task: Task, policy: Policy, target,
         d = math.hypot(tx - p[0], ty - p[1])
         dmin = min(dmin, d)
         if d < task.target_radius:
-            reached = True
-            break
+            stop_steps.append(step)
+            stop += 1
+            if stop == n_stops:
+                reached = True
+                break
+            # next stop: closeness is now measured from here to it
+            tx, ty = target_at(task, target, step, stop)
+            d0 = dmin = math.hypot(tx - p[0], ty - p[1])
+            continue
         if dbody < task.body_radius:
             crashed = True
             break
@@ -226,21 +253,25 @@ def run_episode(task: Task, policy: Policy, target,
 
     if record:
         frames.append({"t": step * dt, "probe": list(p), "bodies": list(bpos), "thrust": (0.0, 0.0),
-                       "target": (tx, ty)})
-    score = episode_score(task, reached, crashed, step, fuel_used, dmin, d0)
-    return Result(score, reached, crashed, oob, step, fuel_used, dmin, work, thrust_work,
+                       "target": (tx, ty), "stop": min(stop, n_stops - 1)})
+    score = episode_score(task, reached, crashed, step, fuel_used, dmin, d0, stops_done=stop)
+    return Result(score, reached, crashed, oob, step, fuel_used, dmin, stop, stop_steps, work, thrust_work,
                   tuple(p), tuple(v), frames)
 
 
 def episode_score(task: Task, reached: bool, crashed: bool, steps: int,
-                  fuel_used: float, dmin: float, d0: float) -> float:
-    """Reaching the target scores 1 plus up to 0.5 for arriving early.
-    Missing scores up to 0.8 for how close the probe got. Spending the
+                  fuel_used: float, dmin: float, d0: float, stops_done: int | None = None) -> float:
+    """Each stop caught scores 1 (a plain target is a one-stop tour).
+    Finishing adds up to 0.5 for arriving early; otherwise the current
+    stop adds up to 0.8 for how close the probe got to it. Spending the
     whole fuel budget costs ``fuel_weight``, crashing costs 0.5."""
+    if stops_done is None:
+        stops_done = 1 if reached else 0
+    score = float(stops_done)
     if reached:
-        score = 1.0 + 0.5 * (1.0 - steps / task.max_steps)
+        score += 0.5 * (1.0 - steps / task.max_steps)
     else:
-        score = 0.8 * max(0.0, 1.0 - dmin / d0) if d0 > 0 else 0.0
+        score += 0.8 * max(0.0, 1.0 - dmin / d0) if d0 > 0 else 0.0
     score -= task.fuel_weight * fuel_used / task.fuel
     if crashed:
         score -= 0.5
@@ -334,6 +365,42 @@ def _heldout_delays(n: int, seed: int) -> tuple[Rendezvous, ...]:
 
 RENDEZVOUS_HELDOUT = _heldout_delays(12, seed=4321)
 
-TASKS = {"free": FREE, "trio": TRIO, "assist": ASSIST, "rendezvous": RENDEZVOUS}
+def grand_field():
+    """A star and four planets: A (r 0.9), B (1.4), C (2.0), D (2.6).
+    Five bodies, so the probe's path is shaped by several pulls at once
+    and the planets' configuration never quite repeats."""
+    return star_planets([(0.03, 0.9, 0.5), (0.04, 1.4, 2.6), (0.05, 2.0, 4.4), (0.02, 2.6, 1.2)],
+                        softening=0.03)
+
+
+#: Milestone 8: the grand tour. Start inside planet A's orbit, get past
+#: A (a hazard: catching it is easy by accident, crashing into it too),
+#: then catch B, C and D in that order, stepping outward through a
+#: five-body field. Efficient transfers alone take ~20 time units, hence
+#: 800 steps. 36 launch delays over ~one orbit of C (~710 steps).
+TOUR_PERIOD_STEPS = 720
+TOUR = Task(
+    name="tour",
+    targets=tuple(Tour((2, 3, 4), round(TOUR_PERIOD_STEPS * k / 36)) for k in range(36)),
+    start=(0.5, 0.0),
+    start_vel=(0.0, math.sqrt(1.0 / 0.5)),
+    target_radius=0.12,
+    dt=0.025,
+    max_steps=800,
+    thrust_max=0.5,
+    fuel=1.5,
+    bounds=4.0,
+    field=grand_field,
+    body_radius=0.05,
+    pos_scale=3.0,
+    vel_scale=1.5,
+    accel_ref=1.0,
+    track_extra=TOUR_PERIOD_STEPS,
+)
+TOUR_HELDOUT = tuple(Tour((2, 3, 4), d) for d in
+                     sorted(random.Random(8642).sample(
+                         [d for d in range(TOUR_PERIOD_STEPS) if d not in {t.delay for t in TOUR.targets}], 12)))
+
+TASKS = {"free": FREE, "trio": TRIO, "assist": ASSIST, "rendezvous": RENDEZVOUS, "tour": TOUR}
 HELDOUT = {"free": FREE_HELDOUT, "trio": TRIO_HELDOUT, "assist": ASSIST_HELDOUT,
-           "rendezvous": RENDEZVOUS_HELDOUT}
+           "rendezvous": RENDEZVOUS_HELDOUT, "tour": TOUR_HELDOUT}

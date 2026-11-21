@@ -47,3 +47,24 @@ def test_lirk_log_parsing(tmp_path):
     p.write_text("2026-11-21T08:10:00Z rc=1 secs=2 lirk test //...\njunk line\n")
     assert lirk_log(p) == [["08:10", 1, 2, "test"]]
     assert lirk_log(tmp_path / "missing") == []
+
+
+def test_skill_stages_count_every_genome():
+    # stages need numpy: skip per test, never per module (lirk-notes #13)
+    from env.backend import numpy_available
+    if not numpy_available():
+        pytest.skip("numpy not installed")
+    rep = learning_json("rendezvous", sample_gens=[0], swarm=False, generations=3, pop=4,
+                        stages_every=2)
+    assert [s["gen"] for s in rep["stages"]] == [0, 2]
+    for s in rep["stages"]:
+        assert sum(s["genomes"]) == 4                  # every genome counted once
+        assert sum(s["episodes"]) == 4 * 36            # every (genome, launch) counted once
+
+
+def test_tour_episode_json_tracks_stops():
+    from env.navigation import TOUR
+    ep = episode_json(TOUR, lambda o: [0.2, 0.1], TOUR.targets[3], every=8)
+    assert ep["target"] == {"stops": [2, 3, 4], "delay": TOUR.targets[3].delay}
+    assert len(ep["stop"]) == len(ep["tp"]) == len(ep["p"])
+    assert ep["stops_done"] == len(ep["stop_steps"])

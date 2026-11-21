@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 from env.agent import policy_from_genome
-from env.navigation import HELDOUT, TASKS, TRIO, Rendezvous, field_track, run_episode
+from env.navigation import HELDOUT, TASKS, TRIO, Rendezvous, Tour, field_track, run_episode
 from env.training import load_agent, train
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,6 +29,8 @@ def _r(x: float) -> float:
 
 
 def _target_json(t):
+    if isinstance(t, Tour):
+        return {"stops": list(t.stops), "delay": t.delay}
     return {"body": t.body, "delay": t.delay} if isinstance(t, Rendezvous) else [_r(t[0]), _r(t[1])]
 
 
@@ -41,10 +43,13 @@ def episode_json(task, policy, target, every: int = 2, bodies: bool = True) -> d
     out = {"target": _target_json(target), "reached": r.reached, "crashed": r.crashed,
            "score": _r(r.score), "fuel": _r(r.fuel_used), "steps": r.steps,
            "work": [_r(w) for w in r.work], "thrust_work": _r(r.thrust_work),
+           "stops_done": r.stops_done, "stop_steps": r.stop_steps,
            "p": [[_r(f["probe"][0]), _r(f["probe"][1])] for f in fr],
            "th": [[_r(f["thrust"][0]), _r(f["thrust"][1])] for f in fr]}
-    if isinstance(target, Rendezvous):
+    if isinstance(target, (Rendezvous, Tour)):
         out["tp"] = [[_r(f["target"][0]), _r(f["target"][1])] for f in fr]
+    if isinstance(target, Tour):
+        out["stop"] = [f["stop"] for f in fr]
     if bodies and task.field is not None:
         out["b"] = [[_r(v) for v in f["bodies"]] for f in fr]
     return out
@@ -67,20 +72,35 @@ def agent_json(name: str, every: int = 2) -> dict:
 
 
 def learning_json(name: str, sample_gens: list[int], swarm: bool, target_index: int = 0,
-                  every: int = 4, generations: int | None = None, pop: int | None = None) -> dict:
+                  every: int = 4, generations: int | None = None, pop: int | None = None,
+                  stages_every: int = 0) -> dict:
     """Re-run golden agent ``name``'s training and record, at each sampled
     generation, the flight of every genome (``swarm``) or of the best one,
     all aimed at one showcase target. ``generations``/``pop`` override the
     spec (for quick tests); with the spec's own values the final best
-    genome is the golden agent."""
-    spec = json.loads((AGENTS / f"agent_{name}.json").read_text())
+    genome is the golden agent. With ``stages_every`` > 0 (needs numpy),
+    every that-many generations also record how many genomes caught how
+    many stops, over all of the task's targets: skills emerging in stages."""
+    from tests.golden.agent_cases import CASES
+    spec = CASES[name]          # the canonical training spec (the golden file may not exist yet)
     task = TASKS[spec["task"]]
     target = task.targets[target_index]
     gens = generations if generations is not None else spec["generations"]
     sample = sorted({g for g in sample_gens if g < gens})
     frames: dict[int, dict] = {}
 
+    stages = []
+
     def on_population(gen, population, fitness):
+        if stages_every and gen % stages_every == 0:
+            from npbackend.batch import evaluate_population
+            from env.agent import SIZES
+            _, caught = evaluate_population(task, population, SIZES, details=True)
+            n_stops = len(task.targets[0].stops) if isinstance(task.targets[0], Tour) else 1
+            per_genome = caught.max(axis=1)          # best tour of each genome
+            stages.append({"gen": gen,
+                           "genomes": [int((per_genome == k).sum()) for k in range(n_stops + 1)],
+                           "episodes": [int((caught == k).sum()) for k in range(n_stops + 1)]})
         if gen not in sample:
             return
         best = max(range(len(fitness)), key=fitness.__getitem__)
@@ -98,10 +118,12 @@ def learning_json(name: str, sample_gens: list[int], swarm: bool, target_index: 
     out = {"task": task.name, "target": _target_json(target), "swarm": swarm,
            "generations": gens, "curve": curve,
            "samples": [dict(gen=g, **frames[g]) for g in sample]}
+    if stages:
+        out["stages"] = stages
     if task.field is not None:
         # the field is the same for every flight of the showcase target
         _, track = field_track(task)
-        off = target.delay if isinstance(target, Rendezvous) else 0
+        off = target.delay if isinstance(target, (Rendezvous, Tour)) else 0
         out["field"] = [[_r(v) for v in track[k]] for k in range(off, off + task.max_steps + 1, every)]
         out["masses"] = list(task.field()[0].masses)
     return out

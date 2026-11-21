@@ -16,7 +16,7 @@ import math
 
 import numpy as np
 
-from env.navigation import Rendezvous, Task, field_track
+from env.navigation import Rendezvous, Task, Tour, field_track
 
 
 def _unpack(genomes: np.ndarray, sizes: list[int]):
@@ -31,22 +31,30 @@ def _unpack(genomes: np.ndarray, sizes: list[int]):
 
 
 def evaluate_population(task: Task, genomes: list[list[float]], sizes: list[int],
-                        targets=None) -> list[float]:
-    """Mean episode score per genome, like ``env.navigation.evaluate``."""
+                        targets=None, details: bool = False):
+    """Mean episode score per genome, like ``env.navigation.evaluate``.
+    With ``details``, also return the (genome, target) array of stops
+    caught -- how the grand-tour visual tracks skills emerging."""
     targets = task.targets if targets is None else targets
     P, T = len(genomes), len(targets)
     B = P * T
     G = np.asarray(genomes, dtype=np.float64)
     layers = [(W.repeat(T, axis=0), b.repeat(T, axis=0)) for W, b in _unpack(G, sizes)]
-    # Moving targets (Rendezvous) start at a per-episode offset into the
-    # field's history and follow a body; fixed targets have offset 0.
-    moving = [isinstance(t, Rendezvous) for t in targets]
+    # Moving targets (Rendezvous, Tour) start at a per-episode offset into
+    # the field's history and follow a body -- for a tour, the body of the
+    # current stop; fixed targets have offset 0 and one stop.
+    moving = [isinstance(t, (Rendezvous, Tour)) for t in targets]
     if any(moving) and not all(moving):
-        raise ValueError("mix of fixed and Rendezvous targets in one call")
+        raise ValueError("mix of fixed and moving targets in one call")
     moving = all(moving) and len(targets) > 0
+    stop_lists = [t.stops if isinstance(t, Tour) else (t.body,) if moving else (0,) for t in targets]
+    smax = max(len(x) for x in stop_lists)
+    stops = np.tile(np.asarray([list(x) + [x[-1]] * (smax - len(x)) for x in stop_lists],
+                               dtype=np.int64), (P, 1))                  # (B, smax)
+    nst = np.tile(np.asarray([len(x) for x in stop_lists], dtype=np.int64), P)
+    kstop = np.zeros(B, dtype=np.int64)                                   # current stop
     if moving:
         off = np.tile(np.asarray([t.delay for t in targets], dtype=np.int64), P)
-        tbody = np.tile(np.asarray([t.body for t in targets], dtype=np.int64), P)
     else:
         off = np.zeros(B, dtype=np.int64)
         tgt = np.tile(np.asarray(targets, dtype=np.float64), (P, 1))      # (B, 2)
@@ -67,7 +75,7 @@ def evaluate_population(task: Task, genomes: list[list[float]], sizes: list[int]
         return tr[off + s]                                                 # (B, n, 2)
 
     def target_pos(s):
-        return bodies(s)[rows, tbody] if moving else tgt
+        return bodies(s)[rows, stops[rows, np.minimum(kstop, nst - 1)]] if moving else tgt
 
     def field(p, s):
         if system is None:
@@ -135,16 +143,26 @@ def evaluate_population(task: Task, genomes: list[list[float]], sizes: list[int]
         d = np.hypot(*(tgt - p).T)
         dmin[m] = np.minimum(dmin[m], d[m])
         hit = m & (d < task.target_radius)
+        final = hit & (kstop + 1 == nst)
+        inter = hit & ~final
+        kstop[hit] += 1
+        if inter.any():                       # next stop: measure closeness from here
+            tgt = target_pos(step)
+            dn = np.hypot(*(tgt - p).T)
+            d0[inter] = dn[inter]
+            dmin[inter] = dn[inter]
         crash = m & ~hit & (dbody < task.body_radius)
         lost = m & ~hit & ~crash & ((np.abs(p[:, 0]) > task.bounds) | (np.abs(p[:, 1]) > task.bounds))
-        reached |= hit
+        reached |= final
         crashed |= crash
         oob |= lost
-        active = m & ~(hit | crash | lost)
+        active = m & ~(final | crash | lost)
 
     miss = 0.8 * np.maximum(0.0, 1.0 - dmin / np.where(d0 > 0, d0, 1.0))
     miss = np.where(d0 > 0, miss, 0.0)
-    score = np.where(reached, 1.0 + 0.5 * (1.0 - steps / task.max_steps), miss)
+    score = kstop + np.where(reached, 0.5 * (1.0 - steps / task.max_steps), miss)
     score = score - task.fuel_weight * fuel_used / task.fuel - 0.5 * crashed
     per = score.reshape(P, T)
+    if details:
+        return [math.fsum(row) / T for row in per.tolist()], kstop.reshape(P, T)
     return [math.fsum(row) / T for row in per.tolist()]

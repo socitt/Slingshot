@@ -27,6 +27,9 @@ CASES = {
     # seed 2 of two tried (seed 1: 27/36 trained, 7/12 held-out); needs numpy to regenerate
     "rendezvous": dict(task="rendezvous", strategy="es", generations=500, pop=64, seed=2,
                        backend="numpy"),
+    # five bodies, three stops: the long run (~40 min with numpy) is what
+    # lets later stages appear; needs numpy to regenerate
+    "tour": dict(task="tour", strategy="es", generations=1500, pop=64, seed=1, backend="numpy"),
 }
 
 
@@ -44,7 +47,10 @@ def run_case(name: str) -> dict:
     out["reached"] = [r.reached for r in episodes]
     out["heldout_reached"] = [run_episode(task, net, t).reached for t in heldout]
     out["work"] = [r.work for r in episodes]
-    out["targets"] = [[t.body, t.delay] if hasattr(t, "delay") else list(t) for t in task.targets]
+    out["stops_done"] = [r.stops_done for r in episodes]
+    out["heldout_stops_done"] = [run_episode(task, net, t).stops_done for t in heldout]
+    out["targets"] = [([t.body, t.delay] if hasattr(t, "body") else [list(t.stops), t.delay])
+                      if hasattr(t, "delay") else list(t) for t in task.targets]
     assert out["mlp"]["sizes"] == SIZES
     return out
 

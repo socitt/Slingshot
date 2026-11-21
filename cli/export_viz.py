@@ -21,6 +21,10 @@ FULL_LEARNING = {
     "free": dict(sample_gens=[0, 1, 2, 3, 5, 8, 12, 20, 30, 37, 60, 99], swarm=True, target_index=3),
     # the field: just the best flight of a few generations (64 genomes is a lot of lines)
     "trio": dict(sample_gens=[0, 5, 15, 40, 80, 150, 250, 499], swarm=False, target_index=4),
+    # the grand tour: whole populations through the moving five-body field,
+    # plus how many planets every genome catches, every 10 generations
+    "tour": dict(sample_gens=[0, 25, 100, 250, 500, 1000, 1499], swarm=True, target_index=9,
+                 every=8, stages_every=10),
 }
 QUICK_LEARNING = {"free": dict(sample_gens=[0, 1, 2], swarm=True, generations=3, pop=6)}
 

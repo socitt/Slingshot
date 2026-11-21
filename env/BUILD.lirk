@@ -54,3 +54,11 @@ runner = "pytest"
 srcs = ["test_rendezvous.py"]
 deps = [":navigation"]
 timeout = 120
+
+[[target]]
+name = "tour_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_tour.py"]
+deps = [":agent"]
+timeout = 180

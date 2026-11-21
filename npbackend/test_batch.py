@@ -15,7 +15,7 @@ import pytest
 
 from env.agent import SIZES, policy_from_genome
 from env.backend import numpy_available
-from env.navigation import ASSIST, FREE, FREE_HELDOUT, RENDEZVOUS, RENDEZVOUS_HELDOUT, TRIO, evaluate
+from env.navigation import ASSIST, FREE, FREE_HELDOUT, RENDEZVOUS, RENDEZVOUS_HELDOUT, TOUR, TRIO, evaluate
 from env.training import train
 from nn.mlp import init_params
 
@@ -94,3 +94,22 @@ def test_rendezvous_held_out_and_mixed_targets():
     assert evaluate_population(RENDEZVOUS, gs, SIZES, RENDEZVOUS_HELDOUT) == pytest.approx(py, abs=1e-9)
     with pytest.raises(ValueError, match="mix"):
         evaluate_population(RENDEZVOUS, gs, SIZES, (RENDEZVOUS.targets[0], (1.0, 1.0)))
+
+
+@needs_numpy
+def test_tour_parity_and_stop_details():
+    """800 steps in a five-body field: a 1e-15 nudge changes some random
+    genomes' outcomes even within pure Python, so compare stop counts
+    (exact for almost all episodes) and median scores."""
+    from env.navigation import run_episode
+    from npbackend.batch import evaluate_population
+    gs = genomes(6)
+    scores, stops = evaluate_population(TOUR, gs, SIZES, details=True)
+    assert stops.shape == (6, len(TOUR.targets))
+    py = [evaluate(TOUR, policy_from_genome(g)) for g in gs]
+    diffs = sorted(abs(a - b) for a, b in zip(py, scores))
+    assert diffs[len(diffs) // 2] < 0.05
+    net = policy_from_genome(gs[0])
+    py_stops = [run_episode(TOUR, net, t).stops_done for t in TOUR.targets]
+    agree = sum(a == b for a, b in zip(py_stops, stops[0].tolist()))
+    assert agree >= len(TOUR.targets) - 3
