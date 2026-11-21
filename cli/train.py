@@ -20,8 +20,22 @@ from evolve.strategies import STRATEGIES
 BAR = " ▁▂▃▄▅▆▇█"
 
 
-def bar(score: float, lo: float = 0.0, hi: float = 1.5, width: int = 10) -> str:
+def unicode_ok(stream=None) -> bool:
+    """Whether the terminal can show block characters. A C/POSIX locale
+    on a minimal Linux (iSH included) may only do ASCII."""
+    stream = stream or sys.stdout
+    try:
+        BAR.encode(stream.encoding or "ascii")
+    except (UnicodeEncodeError, LookupError):
+        return False
+    return True
+
+
+def bar(score: float, lo: float = 0.0, hi: float = 1.5, width: int = 10,
+        fancy: bool = True) -> str:
     frac = max(0.0, min(1.0, (score - lo) / (hi - lo)))
+    if not fancy:
+        return ("#" * round(frac * width)).ljust(width)
     full, part = divmod(round(frac * width * 8), 8)
     return ("█" * full + (BAR[part] if part else "")).ljust(width)
 
@@ -53,9 +67,12 @@ def main(argv: list[str] | None = None) -> int:
         policy, _ = load_agent(args.init)
         init = policy.params
 
+    fancy = unicode_ok()
+
     def report(g):
         if not args.quiet:
-            print(f"gen {g.index:3d} {g.best:+.3f} {bar(g.best)} avg {g.mean:+.3f}", flush=True)
+            print(f"gen {g.index:3d} {g.best:+.3f} {bar(g.best, fancy=fancy)} avg {g.mean:+.3f}",
+                  flush=True)
 
     t0 = time.time()
     try:

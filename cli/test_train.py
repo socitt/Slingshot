@@ -5,9 +5,11 @@ import subprocess
 import sys
 
 
-def run(*args):
+def run(*args, env=None):
+    import os
     return subprocess.run([sys.executable, "-m", "cli.train", *args],
-                          capture_output=True, text=True, timeout=240)
+                          capture_output=True, text=True, timeout=240,
+                          env={**os.environ, **(env or {})})
 
 
 def test_selftest():
@@ -51,3 +53,10 @@ def test_numpy_backend_flag_gives_same_result_or_clear_error():
     else:
         assert npy.returncode == 0, npy.stderr
         assert npy.stdout.split()[1] == py.stdout.split()[1]   # same best score
+
+
+def test_ascii_only_terminal_gets_an_ascii_bar():
+    # iSH with a C/POSIX locale may not encode block characters
+    proc = run("--generations", "4", "--pop", "6", env={"PYTHONIOENCODING": "ascii"})
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.isascii()
