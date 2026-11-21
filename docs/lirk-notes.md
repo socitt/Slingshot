@@ -347,3 +347,26 @@ Two related things that work well:
 - In the numpy-free venv (`python3 -m venv`, `pip install -e ../lirk
   pytest`), `lirk test //...` passed 25/25 with the numpy tests
   reported as skipped. That is the closest this container gets to iSH.
+
+### 14. Label errors are clear; a "did you mean" would make them great (minor)
+
+Run from `physics/` (root found via `.lirk-root` every time):
+
+```
+$ lirk test //physics
+lirk: malformed label '//physics': expected //package:name, //package:all, //package/... or //...
+lirk: repo root is /home/user/Slingshot
+$ lirk test //physics:orbit
+lirk: unknown target: //physics:orbit
+lirk: repo root is /home/user/Slingshot
+$ lirk test //physics:orbits
+lirk: //physics:orbits is type 'library', not 'test'
+lirk: repo root is /home/user/Slingshot
+```
+
+All exit 1 and all accurate. Two cheap improvements: suggest the
+nearest label for an unknown target (`did you mean //physics:orbits?`),
+and for a library passed to `lirk test`, name the test targets that
+depend on it (`//physics:orbits_test`, `//physics:conservation_test`,
+...) — that is almost always what was meant. `//physics:all` and
+`//tests/...` worked as documented.

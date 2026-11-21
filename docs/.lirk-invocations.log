@@ -48,3 +48,9 @@
 2026-11-21T10:32:37Z rc=1 secs=5 lirk verify --sample 5
 2026-11-21T10:32:46Z rc=0 secs=0 lirk test //...
 2026-11-21T10:32:47Z rc=0 secs=1 lirk verify --sample 5
+2026-11-21T10:33:40Z rc=0 secs=0 lirk test //physics:all
+2026-11-21T10:33:40Z rc=0 secs=0 lirk build //tests/...
+2026-11-21T10:33:40Z rc=1 secs=0 lirk test //physics
+2026-11-21T10:33:40Z rc=1 secs=0 lirk test //nope/...
+2026-11-21T10:33:41Z rc=1 secs=1 lirk test //physics:orbit
+2026-11-21T10:33:41Z rc=1 secs=0 lirk test //physics:orbits
