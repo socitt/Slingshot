@@ -14,7 +14,7 @@ srcs = ["agent.py"]
 
 [[target]]
 name = "training"
-deps = [":agent", "//evolve:strategies"]
+deps = [":agent", "//evolve:strategies", ":backend"]
 type = "library"
 srcs = ["training.py"]
 
@@ -33,3 +33,16 @@ type = "test"
 runner = "pytest"
 srcs = ["test_trio.py"]
 timeout = 120
+
+[[target]]
+name = "backend"
+deps = [":agent", "//npbackend:batch"]
+type = "library"
+srcs = ["backend.py"]
+
+[[target]]
+name = "backend_test"
+deps = [":backend"]
+type = "test"
+runner = "pytest"
+srcs = ["test_backend.py"]

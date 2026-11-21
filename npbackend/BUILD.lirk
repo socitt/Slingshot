@@ -1,0 +1,17 @@
+# Optional numpy backend. Never imported by the core; env/backend.py
+# loads it on request. Tests skip per-test without numpy (lirk-notes #13).
+
+[[target]]
+name = "batch"
+deps = ["//env:navigation"]
+type = "library"
+srcs = ["batch.py"]
+
+[[target]]
+name = "batch_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_batch.py"]
+# reads the golden agents at runtime: depend on the target owning them
+deps = ["//tests/golden:agent_cases"]
+timeout = 120

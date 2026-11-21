@@ -13,6 +13,7 @@ import time
 
 from env.navigation import HELDOUT, TASKS
 from env.agent import policy_from_genome
+from env.backend import BACKENDS, BackendUnavailable
 from env.training import evaluate, load_agent, save_agent, task_by_name, train
 from evolve.strategies import STRATEGIES
 
@@ -35,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--init", help="start from this agent's weights (curriculum)")
     p.add_argument("--out", help="write the best agent here (JSON)")
     p.add_argument("--quiet", action="store_true", help="only print the summary")
+    p.add_argument("--backend", choices=BACKENDS, default=None,
+                   help="python (default, stdlib only) or numpy (optional, faster)")
     return p
 
 
@@ -55,7 +58,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"gen {g.index:3d} {g.best:+.3f} {bar(g.best)} avg {g.mean:+.3f}", flush=True)
 
     t0 = time.time()
-    res = train(task, args.strategy, args.generations, args.pop, args.seed, init, report)
+    try:
+        res = train(task, args.strategy, args.generations, args.pop, args.seed, init, report,
+                    backend=args.backend)
+    except BackendUnavailable as e:
+        print(f"train: {e}", file=sys.stderr)
+        return 2
     elapsed = time.time() - t0
     net = policy_from_genome(res.genome)
     summary = {"task": task.name, "strategy": args.strategy, "generations": args.generations,

@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from env.agent import GENOME_SIZE, SIZES, fitness_fn, policy_from_genome
+from env.agent import GENOME_SIZE, SIZES, policy_from_genome
+from env.backend import population_evaluator
 from env.navigation import TASKS, Task, evaluate
 from evolve.strategies import STRATEGIES, Generation, run
 
@@ -26,14 +27,16 @@ class TrainResult:
 
 def train(task: Task, strategy: str = "ga", generations: int = 30, pop_size: int = 24,
           seed: int = 1, init: list[float] | None = None,
-          on_generation: Callable[[Generation], None] | None = None) -> TrainResult:
+          on_generation: Callable[[Generation], None] | None = None,
+          backend: str | None = None) -> TrainResult:
     if strategy not in STRATEGIES:
         raise ValueError(f"unknown strategy {strategy!r}; choose from {sorted(STRATEGIES)}")
     x0 = list(init) if init is not None else [0.0] * GENOME_SIZE
     if len(x0) != GENOME_SIZE:
         raise ValueError(f"init genome has {len(x0)} params, expected {GENOME_SIZE}")
     strat = STRATEGIES[strategy](x0, seed=seed, pop_size=pop_size, **DEFAULTS[strategy])
-    genome, score, history = run(strat, fitness_fn(task), generations, on_generation)
+    evaluate_all = population_evaluator(task, backend)
+    genome, score, history = run(strat, None, generations, on_generation, evaluate_all)
     return TrainResult(genome, score, history)
 
 
