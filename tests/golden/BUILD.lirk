@@ -16,8 +16,15 @@ srcs = ["chaos_cases.py"]
 data = ["data"]
 
 [[target]]
+name = "agent_cases"
+deps = ["//env:training"]
+type = "library"
+srcs = ["agent_cases.py"]
+data = ["data"]
+
+[[target]]
 name = "regen"
-deps = [":chaos_cases", ":physics_cases"]
+deps = [":agent_cases", ":chaos_cases", ":physics_cases"]
 type = "library"
 srcs = ["regen.py"]
 
@@ -38,6 +45,15 @@ runner = "pytest"
 srcs = ["test_chaos_golden.py"]
 data = ["data"]
 timeout = 180
+
+[[target]]
+name = "agent_golden_test"
+deps = [":agent_cases"]
+type = "test"
+runner = "pytest"
+srcs = ["test_agent_golden.py"]
+data = ["data"]
+timeout = 120
 
 [[target]]
 name = "regen_test"

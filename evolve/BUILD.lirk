@@ -1,0 +1,22 @@
+# Neuroevolution: genetic algorithm and evolution strategy (ask/tell).
+
+[[target]]
+name = "strategies"
+type = "library"
+srcs = ["strategies.py"]
+
+[[target]]
+name = "strategies_test"
+deps = [":strategies", "//nn:mlp"]
+type = "test"
+runner = "pytest"
+srcs = ["test_strategies.py"]
+timeout = 120
+
+[[target]]
+name = "training_smoke_test"
+deps = ["//env:training"]
+type = "test"
+runner = "pytest"
+srcs = ["test_training_smoke.py"]
+timeout = 180

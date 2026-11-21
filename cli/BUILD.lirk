@@ -16,3 +16,18 @@ srcs = ["test_chaos_demo.py"]
 # check cannot see -- this dep must be declared by hand (lirk-notes #9).
 deps = [":chaos_demo"]
 timeout = 300
+
+[[target]]
+name = "train"
+deps = ["//env:navigation", "//env:training", "//evolve:strategies", "//env:agent"]
+type = "library"
+srcs = ["train.py"]
+
+[[target]]
+name = "train_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_train.py"]
+# Subprocess-only, like chaos_demo_test: declared by hand (lirk-notes #9).
+deps = [":train"]
+timeout = 300

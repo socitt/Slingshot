@@ -3,6 +3,7 @@
     python3 -m tests.golden.regen                 # every suite, every case
     python3 -m tests.golden.regen physics         # one suite
     python3 -m tests.golden.regen chaos lorenz_short
+    python3 -m tests.golden.regen agents free      # retrains: slow
 
 Only regenerate after an intentional numerical change, and say why in
 the commit message.
@@ -13,9 +14,9 @@ from __future__ import annotations
 import json
 import sys
 
-from tests.golden import chaos_cases, physics_cases
+from tests.golden import agent_cases, chaos_cases, physics_cases
 
-SUITES = {"physics": physics_cases, "chaos": chaos_cases}
+SUITES = {"physics": physics_cases, "chaos": chaos_cases, "agents": agent_cases}
 
 
 def main(argv: list[str] | None = None) -> int:

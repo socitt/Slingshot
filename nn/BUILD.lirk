@@ -1,0 +1,13 @@
+# Tiny MLP from scratch: flat genome in, actions out.
+
+[[target]]
+name = "mlp"
+type = "library"
+srcs = ["mlp.py"]
+
+[[target]]
+name = "mlp_test"
+deps = [":mlp"]
+type = "test"
+runner = "pytest"
+srcs = ["test_mlp.py"]

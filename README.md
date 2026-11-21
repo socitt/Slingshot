@@ -18,9 +18,11 @@ first commit. lirk feedback lives in [docs/lirk-notes.md](docs/lirk-notes.md).
 | `physics/` | N-body gravity, RK4 + leapfrog, classic initial conditions |
 | `chaos/` | logistic map (bifurcations, Feigenbaum delta), Lorenz, Lyapunov exponents |
 | `render/` | phone-width plain-text plots |
-| `cli/` | `chaos_demo` entry point (`python3 -m cli.chaos_demo lorenz`) |
+| `cli/` | `chaos_demo` and `train` entry points |
 | `tests/golden/` | golden trajectories and seeded scores (`data/`) and their generator |
-| `nn/`, `evolve/`, `env/` | coming in later milestones |
+| `nn/` | tiny MLP from scratch; a flat list of floats is the genome |
+| `evolve/` | genetic algorithm and OpenAI-style evolution strategy (ask/tell, seeded) |
+| `env/` | navigation task (thrust-limited probe, optional N-body field), scoring, training loop |
 
 ## Building and testing
 
@@ -38,10 +40,20 @@ an independent cross-check.
 
 1. ✅ Physics core with energy-conservation and orbit-period tests.
 2. ✅ Chaos lab: bifurcation, Lorenz, Lyapunov exponents.
-3. MLP + neuroevolution on navigation without gravity.
+3. ✅ MLP + neuroevolution on navigation without gravity. The golden
+   agent (ES, seed 1, 100 generations × 32) scores 1.080 on the 12
+   training targets and 1.077 on 8 held-out ones, beating a hand-tuned
+   PD controller (1.047). It is the best of four seeds tried; the
+   others reached 0.90–0.99 (held-out 0.68–0.89).
 4. Navigation in a three-body field.
 5. Terminal replay of the best agent.
 6. Optional numpy backend.
+
+## Training
+
+```sh
+python3 -m cli.train --task free --strategy es --generations 100 --pop 32 --seed 1 --out agent.json
+```
 
 ## Conventions
 

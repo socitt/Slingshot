@@ -1,0 +1,27 @@
+# The navigation task, genome->policy glue, and the training loop.
+
+[[target]]
+name = "navigation"
+deps = ["//physics:gravity"]
+type = "library"
+srcs = ["navigation.py"]
+
+[[target]]
+name = "agent"
+deps = [":navigation", "//nn:mlp"]
+type = "library"
+srcs = ["agent.py"]
+
+[[target]]
+name = "training"
+deps = [":agent", "//evolve:strategies"]
+type = "library"
+srcs = ["training.py"]
+
+[[target]]
+name = "navigation_test"
+deps = [":navigation", "//physics:orbits"]
+type = "test"
+runner = "pytest"
+srcs = ["test_navigation.py"]
+timeout = 60

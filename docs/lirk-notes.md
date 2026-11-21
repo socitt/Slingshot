@@ -19,8 +19,9 @@ this repo, the entry says so.
 |---|---|---|---|---|---|---|---|
 | M1 physics core | 4 | 7 | 3 | 1 | 15 | 0 | 0 |
 | M2 chaos lab | 0 | 6 | 2 | 2 | 10 | 0 | 1 (see #9 — caught by `lirk verify`) |
+| M3 MLP + neuroevolution | 0 | 4 | 1 | 1 | 6 | 0 | 0 |
 
-Running total: **25**. (Updated when committing; the log is authoritative.)
+Running total: **31**. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -29,6 +30,7 @@ Running total: **25**. (Updated when committing; the log is authoritative.)
 | 2026-11-21 | `lirk verify --sample 5` (seed 1720564241) | 5 verified, 0 stale, 1 target(s) not cached — OK |
 | 2026-11-21 | `lirk verify //cli/...` (deliberate probe, #9) | 0 verified, **1 stale** — FAILED (expected; the probe's point) |
 | 2026-11-21 | `lirk verify --sample 5` (seed 1905431998) | 5 verified, 0 stale, 0 not cached — OK |
+| 2026-11-21 | `lirk verify --sample 5` (seed not captured — I piped to `tail`) | 5 verified, 0 stale, 0 not cached — OK |
 
 ## Cache-correctness probes
 
@@ -42,6 +44,16 @@ Running total: **25**. (Updated when committing; the log is authoritative.)
 - **Adding `pytest.ini` at the root re-ran exactly the pytest targets**
   and left the unittest target (`//physics:kepler_unittest`) cached.
   Correct.
+
+## Timings (container, not iSH)
+
+| When | Command | Wall time |
+|---|---|---|
+| after M3 (20 test targets, 147 pytest tests) | `lirk test //... --force` | 13.3 s |
+| same tree | `python3 -m pytest -q` from root | 7.9 s |
+
+The gap is lirk's one-process-per-src model (interpreter + pytest
+startup per target), which is by design.
 
 ## Friction, bugs and confusing messages
 
@@ -236,3 +248,15 @@ closure counts), but it means a later refactor of `chaos` that drops
 the dependency turns `cli:chaos_demo` into a build failure in a package
 nobody touched. Not a bug; a note for anyone expecting Bazel's
 "strict deps" behaviour.
+
+### 11. Confirmed working as documented in M3 (no friction)
+
+- `lirk fix` added 27 deps across 15 targets in one go, including
+  cross-package edges into four new packages; zero needed a hand fix.
+- Editing `evolve/strategies.py` re-ran exactly the dependent tests
+  (strategies, training smoke, train CLI, agent golden, regen) and left
+  physics/chaos cached.
+- A real bug (GA default elite/parents larger than a small population)
+  was caught by the subprocess CLI test, not by unit tests — the
+  entry-point pattern from getting-started paid for itself, once its
+  dep was declared (#9).
