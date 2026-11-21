@@ -83,11 +83,27 @@ python3 -m cli.chaos_demo bifurcation
 
 ## Open problems
 
-- Field agents still miss ~40% of held-out targets. A time/phase input
-  or a richer net are the next things to try (the numpy backend makes
-  such sweeps minutes, not hours).
-- A better escape from the do-nothing optimum on `assist` (novelty
-  search, or shaping on energy gained) is the obvious next experiment.
+- Field agents still miss ~40% of held-out targets.
+- `assist` scores stay around 0.3: agents reach 2–3 of 6 targets and
+  always spend the whole budget.
+
+What has been tried (numpy backend, ES unless noted), so the next
+attempt starts from evidence:
+
+| Idea | Result |
+|---|---|
+| 6 → 12 → 24 `trio` training targets | held-out reach 1/6 → ~3/6 → 7/12 (adopted) |
+| GA instead of ES on `assist` | collapses to "don't thrust" (0.191) |
+| bigger ES (64 × 500) on `assist` | 0.13–0.33, no better than 32 × 100 |
+| larger ES sigma (0.25) | worse (≈0.05) |
+| curriculum: trio agent, fuel annealed 1.0 → 0.45 | worse (≈0.02–0.06) |
+| nearest planet's relative velocity as 2 more inputs | no gain (assist 0.27–0.30, trio 0.787 vs 0.829); reverted |
+
+The gravity assist itself is robust, though: independent `assist` runs
+keep rediscovering it. Outer-planet energy of +0.36 to +0.49 appeared in
+a successful episode in 5 of the 9 `assist` runs above, plus the golden agent's
++0.38. Untried: novelty search, shaping on orbital energy, a recurrent
+or larger net.
 
 ## Conventions
 
