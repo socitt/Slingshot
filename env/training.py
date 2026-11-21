@@ -28,7 +28,7 @@ class TrainResult:
 def train(task: Task, strategy: str = "ga", generations: int = 30, pop_size: int = 24,
           seed: int = 1, init: list[float] | None = None,
           on_generation: Callable[[Generation], None] | None = None,
-          backend: str | None = None) -> TrainResult:
+          backend: str | None = None, on_population=None) -> TrainResult:
     if strategy not in STRATEGIES:
         raise ValueError(f"unknown strategy {strategy!r}; choose from {sorted(STRATEGIES)}")
     x0 = list(init) if init is not None else [0.0] * GENOME_SIZE
@@ -36,7 +36,8 @@ def train(task: Task, strategy: str = "ga", generations: int = 30, pop_size: int
         raise ValueError(f"init genome has {len(x0)} params, expected {GENOME_SIZE}")
     strat = STRATEGIES[strategy](x0, seed=seed, pop_size=pop_size, **DEFAULTS[strategy])
     evaluate_all = population_evaluator(task, backend)
-    genome, score, history = run(strat, None, generations, on_generation, evaluate_all)
+    genome, score, history = run(strat, None, generations, on_generation, evaluate_all,
+                                 on_population=on_population)
     return TrainResult(genome, score, history)
 
 

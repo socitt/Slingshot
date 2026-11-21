@@ -47,3 +47,18 @@ srcs = ["test_replay_cli.py"]
 # agents at runtime, so their target is a dep too.
 deps = [":replay", "//tests/golden:agent_cases"]
 timeout = 120
+
+[[target]]
+name = "export_viz"
+type = "library"
+srcs = ["export_viz.py"]
+deps = ["//render:vizdata"]
+
+[[target]]
+name = "export_viz_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_export_viz.py"]
+# Subprocess-only (lirk-notes #9): declared by hand.
+deps = [":export_viz"]
+timeout = 300

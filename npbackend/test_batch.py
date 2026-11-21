@@ -15,7 +15,7 @@ import pytest
 
 from env.agent import SIZES, policy_from_genome
 from env.backend import numpy_available
-from env.navigation import ASSIST, FREE, FREE_HELDOUT, TRIO, evaluate
+from env.navigation import ASSIST, FREE, FREE_HELDOUT, RENDEZVOUS, RENDEZVOUS_HELDOUT, TRIO, evaluate
 from env.training import train
 from nn.mlp import init_params
 
@@ -45,7 +45,7 @@ def test_scores_match_python_backend_in_free_space():
 
 
 @needs_numpy
-@pytest.mark.parametrize("task", [TRIO, ASSIST])
+@pytest.mark.parametrize("task", [TRIO, ASSIST, RENDEZVOUS])
 def test_scores_match_python_backend_in_the_field(task):
     """Only summation order differs between backends (~1e-16), but the
     field is chaotic: a random genome that loiters through a close pass
@@ -84,3 +84,13 @@ def test_training_with_numpy_matches_python():
     b = train(small, "ga", generations=4, pop_size=8, seed=9, backend="numpy")
     assert b.score == pytest.approx(a.score, abs=1e-12)
     assert b.genome == a.genome
+
+
+@needs_numpy
+def test_rendezvous_held_out_and_mixed_targets():
+    from npbackend.batch import evaluate_population
+    gs = genomes(4)
+    py = [evaluate(RENDEZVOUS, policy_from_genome(g), RENDEZVOUS_HELDOUT) for g in gs]
+    assert evaluate_population(RENDEZVOUS, gs, SIZES, RENDEZVOUS_HELDOUT) == pytest.approx(py, abs=1e-9)
+    with pytest.raises(ValueError, match="mix"):
+        evaluate_population(RENDEZVOUS, gs, SIZES, (RENDEZVOUS.targets[0], (1.0, 1.0)))

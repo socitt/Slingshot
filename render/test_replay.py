@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from env.navigation import FREE, TRIO, run_episode
+from env.navigation import FREE, RENDEZVOUS, TRIO, run_episode
 from render.replay import View, draw, hud, render_episode
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -46,7 +46,8 @@ def test_color_only_adds_escapes():
     assert color != plain
 
 
-@pytest.mark.parametrize("task,policy", [(FREE, pd), (TRIO, lambda o: [0.0, 0.0])])
+@pytest.mark.parametrize("task,policy", [(FREE, pd), (TRIO, lambda o: [0.0, 0.0]),
+                                         (RENDEZVOUS, lambda o: [0.3, 0.0])])
 def test_render_episode_frames_fit_the_width(task, policy):
     target = task.targets[0]
     result = run_episode(task, policy, target, record=True)

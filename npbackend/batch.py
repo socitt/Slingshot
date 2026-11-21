@@ -16,7 +16,7 @@ import math
 
 import numpy as np
 
-from env.navigation import Task, field_track
+from env.navigation import Rendezvous, Task, field_track
 
 
 def _unpack(genomes: np.ndarray, sizes: list[int]):
@@ -38,7 +38,18 @@ def evaluate_population(task: Task, genomes: list[list[float]], sizes: list[int]
     B = P * T
     G = np.asarray(genomes, dtype=np.float64)
     layers = [(W.repeat(T, axis=0), b.repeat(T, axis=0)) for W, b in _unpack(G, sizes)]
-    tgt = np.tile(np.asarray(targets, dtype=np.float64), (P, 1))          # (B, 2)
+    # Moving targets (Rendezvous) start at a per-episode offset into the
+    # field's history and follow a body; fixed targets have offset 0.
+    moving = [isinstance(t, Rendezvous) for t in targets]
+    if any(moving) and not all(moving):
+        raise ValueError("mix of fixed and Rendezvous targets in one call")
+    moving = all(moving) and len(targets) > 0
+    if moving:
+        off = np.tile(np.asarray([t.delay for t in targets], dtype=np.int64), P)
+        tbody = np.tile(np.asarray([t.body for t in targets], dtype=np.int64), P)
+    else:
+        off = np.zeros(B, dtype=np.int64)
+        tgt = np.tile(np.asarray(targets, dtype=np.float64), (P, 1))      # (B, 2)
 
     system, track = field_track(task)
     if system is not None:
@@ -50,22 +61,31 @@ def evaluate_population(task: Task, genomes: list[list[float]], sizes: list[int]
         if heaviest >= 0:
             planet[heaviest] = False
 
+    rows = np.arange(B)
+
+    def bodies(s):
+        return tr[off + s]                                                 # (B, n, 2)
+
+    def target_pos(s):
+        return bodies(s)[rows, tbody] if moving else tgt
+
     def field(p, s):
         if system is None:
             z = np.zeros((B, 2))
             return z, z, np.full(B, np.inf)
-        d = tr[s][None, :, :] - p[:, None, :]                              # (B, n, 2)
+        d = bodies(s) - p[:, None, :]                                      # (B, n, 2)
         d2 = (d * d).sum(axis=2)
         r2 = d2 + eps2
         s_ = system.G * masses[None, :] / (r2 * np.sqrt(r2))
         g = (d * s_[:, :, None]).sum(axis=1)
         dp = np.where(planet[None, :], d2, np.inf)
         j = dp.argmin(axis=1)
-        near = d[np.arange(B), j]
+        near = d[rows, j]
         return g, near, np.sqrt(d2.min(axis=1))
 
     p = np.tile(np.asarray(task.start, dtype=np.float64), (B, 1))
     v = np.tile(np.asarray(task.start_vel, dtype=np.float64), (B, 1))
+    tgt = target_pos(0)
     d0 = np.hypot(*(tgt - p).T)
     dmin = d0.copy()
     fuel_used = np.zeros(B)
@@ -104,6 +124,8 @@ def evaluate_population(task: Task, genomes: list[list[float]], sizes: list[int]
         v_half = v + half * (g + a)
         p_new = p + dt * v_half
         g_new, near_new, dbody = field(p_new, step)
+        if moving:
+            tgt = target_pos(step)
         v_new = v_half + half * (g_new + a)
 
         m = active

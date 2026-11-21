@@ -47,11 +47,26 @@ class Task:
     fuel: float = 2.0            # delta-v budget
     fuel_weight: float = 0.3     # score penalty at a fully spent budget
     bounds: float = 5.0          # leaving |x| or |y| > bounds ends the episode
+    track_extra: int = 0         # extra field history for Rendezvous delays
     field: FieldBuilder | None = None
     body_radius: float = 0.05    # closer than this to a body is a crash
     pos_scale: float = 2.0       # observation normalisers
     vel_scale: float = 1.0
     accel_ref: float = 0.5
+
+
+@dataclass(frozen=True)
+class Rendezvous:
+    """A moving target: catch body ``body`` of the field. ``delay`` starts
+    the episode that many steps into the field's (cached) history, so the
+    same task can meet the planets at different phases. Deliberately not
+    a tuple: a fixed target is an ``(x, y)`` pair, and this must never
+    unpack as one."""
+    body: int
+    delay: int = 0
+
+
+Target = "tuple[float, float] | Rendezvous"
 
 
 @dataclass
@@ -91,12 +106,13 @@ def observe(task: Task, p: list[float], v: list[float], target: tuple[float, flo
 
 @functools.lru_cache(maxsize=16)
 def field_track(task: Task) -> tuple[System | None, tuple[tuple[float, ...], ...]]:
-    """Body positions at every step boundary 0..max_steps (cached)."""
+    """Body positions at every step boundary 0..max_steps + track_extra
+    (cached)."""
     if task.field is None:
         return None, ()
     system, pos, vel = task.field()
     track, acc = [tuple(pos)], None
-    for _ in range(task.max_steps):
+    for _ in range(task.max_steps + task.track_extra):
         pos, vel, acc = leapfrog_step(system.accelerations, pos, vel, task.dt, acc)
         track.append(tuple(pos))
     return system, tuple(track)
@@ -124,14 +140,28 @@ def _per_body_field(system: System | None, px: float, py: float, pos) -> tuple[l
     return accs, near, math.sqrt(best_any)
 
 
-def run_episode(task: Task, policy: Policy, target: tuple[float, float],
+def target_at(task: Task, target, step: int) -> tuple[float, float]:
+    """Where the target is at ``step`` of an episode."""
+    if isinstance(target, Rendezvous):
+        _, track = field_track(task)
+        if not track:
+            raise ValueError("a Rendezvous target needs a field")
+        if target.delay > task.track_extra:
+            raise ValueError(f"delay {target.delay} > track_extra {task.track_extra}")
+        b = track[target.delay + step]
+        return b[2 * target.body], b[2 * target.body + 1]
+    return target
+
+
+def run_episode(task: Task, policy: Policy, target,
                 record: bool = False) -> Result:
     system, track = field_track(task)
     nb = system.n if system is not None else 0
-    bpos = track[0] if track else ()
+    off = target.delay if isinstance(target, Rendezvous) else 0
+    bpos = track[off] if track else ()
 
     p, v = list(task.start), list(task.start_vel)
-    tx, ty = target
+    tx, ty = target_at(task, target, 0)
     d0 = math.hypot(tx - p[0], ty - p[1])
     dmin, fuel_used, thrust_work = d0, 0.0, 0.0
     work = [0.0] * nb
@@ -144,7 +174,7 @@ def run_episode(task: Task, policy: Policy, target: tuple[float, float],
     for step in range(1, task.max_steps + 1):
         g = (sum(a[0] for a in accs), sum(a[1] for a in accs))
         fuel_left = task.fuel - fuel_used
-        ax, ay = policy(observe(task, p, v, target, g, near, fuel_left))
+        ax, ay = policy(observe(task, p, v, (tx, ty), g, near, fuel_left))
         ax = max(-1.0, min(1.0, ax)) * task.thrust_max
         ay = max(-1.0, min(1.0, ay)) * task.thrust_max
         mag = math.hypot(ax, ay)
@@ -156,14 +186,16 @@ def run_episode(task: Task, policy: Policy, target: tuple[float, float],
         fuel_used += mag * dt
         if record:
             frames.append({"t": (step - 1) * dt, "probe": list(p), "bodies": list(bpos),
-                           "thrust": (ax, ay)})
+                           "thrust": (ax, ay), "target": (tx, ty)})
 
         # kick-drift-kick
         vx = v[0] + half * (g[0] + ax)
         vy = v[1] + half * (g[1] + ay)
         p = [p[0] + dt * vx, p[1] + dt * vy]
         if track:
-            bpos = track[step]
+            bpos = track[off + step]
+            if off or isinstance(target, Rendezvous):
+                tx, ty = target_at(task, target, step)
         new_accs, near, dbody = _per_body_field(system, p[0], p[1], bpos)
         gx = sum(a[0] for a in new_accs)
         gy = sum(a[1] for a in new_accs)
@@ -193,7 +225,8 @@ def run_episode(task: Task, policy: Policy, target: tuple[float, float],
             break
 
     if record:
-        frames.append({"t": step * dt, "probe": list(p), "bodies": list(bpos), "thrust": (0.0, 0.0)})
+        frames.append({"t": step * dt, "probe": list(p), "bodies": list(bpos), "thrust": (0.0, 0.0),
+                       "target": (tx, ty)})
     score = episode_score(task, reached, crashed, step, fuel_used, dmin, d0)
     return Result(score, reached, crashed, oob, step, fuel_used, dmin, work, thrust_work,
                   tuple(p), tuple(v), frames)
@@ -280,5 +313,27 @@ ASSIST = Task(**{**TRIO.__dict__, "name": "assist", "fuel": 0.45, "fuel_weight":
                   "targets": ring(6, 2.4, phase=math.pi / 6)})
 ASSIST_HELDOUT = ring(6, 2.4)
 
-TASKS = {"free": FREE, "trio": TRIO, "assist": ASSIST}
-HELDOUT = {"free": FREE_HELDOUT, "trio": TRIO_HELDOUT, "assist": ASSIST_HELDOUT}
+#: Milestone 7: catch the outer planet itself. It goes round once in
+#: ~16.5 time units (~660 steps), so each launch delay meets it at a
+#: different phase. Thirty-six phases spread over one orbit: with twelve,
+#: agents memorised launch windows (11/12 trained, 1/12 held-out caught);
+#: with thirty-six the same budget catches 10/12 unseen phases.
+OUTER_PERIOD_STEPS = 660
+RENDEZVOUS = Task(**{**TRIO.__dict__, "name": "rendezvous",
+                     "targets": tuple(Rendezvous(2, round(OUTER_PERIOD_STEPS * k / 36))
+                                      for k in range(36)),
+                     "target_radius": 0.12,
+                     "track_extra": OUTER_PERIOD_STEPS})
+
+
+def _heldout_delays(n: int, seed: int) -> tuple[Rendezvous, ...]:
+    trained = {t.delay for t in RENDEZVOUS.targets}
+    pool = [d for d in range(OUTER_PERIOD_STEPS) if d not in trained]
+    return tuple(Rendezvous(2, d) for d in sorted(random.Random(seed).sample(pool, n)))
+
+
+RENDEZVOUS_HELDOUT = _heldout_delays(12, seed=4321)
+
+TASKS = {"free": FREE, "trio": TRIO, "assist": ASSIST, "rendezvous": RENDEZVOUS}
+HELDOUT = {"free": FREE_HELDOUT, "trio": TRIO_HELDOUT, "assist": ASSIST_HELDOUT,
+           "rendezvous": RENDEZVOUS_HELDOUT}

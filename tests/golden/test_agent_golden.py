@@ -116,3 +116,32 @@ def test_golden_episodes_are_not_hypersensitive(name, task):
     for t in task.targets + HELDOUT[name]:
         a, b = run_episode(task, net, t), run_episode(nudged, net, t)
         assert abs(a.score - b.score) < 1e-6, t
+
+
+# --- milestone 7: rendezvous with the moving outer planet -------------
+
+from env.navigation import RENDEZVOUS  # noqa: E402
+
+
+def test_rendezvous_agent_catches_the_planet_at_unseen_phases():
+    g = load_golden("rendezvous")
+    net = MLP.from_dict(g["mlp"])
+    assert {k: g[k] for k in CASES["rendezvous"]} == CASES["rendezvous"]
+    assert len(g["reached"]) == 36
+    assert evaluate(RENDEZVOUS, net) == pytest.approx(g["score"], abs=1e-6)
+    assert evaluate(RENDEZVOUS, net, HELDOUT["rendezvous"]) == pytest.approx(g["heldout_score"], abs=1e-6)
+    assert sum(g["reached"]) >= 27                 # of 36 launch phases
+    assert sum(g["heldout_reached"]) >= 9          # of 12 never-seen phases
+    assert g["score"] > 0.087 + 0.5                # doing nothing scores 0.087
+
+
+def test_rendezvous_episodes_are_not_hypersensitive():
+    import dataclasses
+    import math
+    net = MLP.from_dict(load_golden("rendezvous")["mlp"])
+    nudged = dataclasses.replace(RENDEZVOUS, start=(RENDEZVOUS.start[0] + 1e-12, RENDEZVOUS.start[1]))
+    for t in RENDEZVOUS.targets + HELDOUT["rendezvous"]:
+        a, b = run_episode(RENDEZVOUS, net, t, record=True), run_episode(nudged, net, t)
+        assert abs(a.score - b.score) < 1e-6, t
+        margin = min(abs(math.dist(f["probe"], f["target"]) - RENDEZVOUS.target_radius) for f in a.frames)
+        assert margin > 1e-7, t

@@ -25,3 +25,18 @@ type = "test"
 runner = "pytest"
 srcs = ["test_replay.py"]
 timeout = 60
+
+[[target]]
+name = "vizdata"
+type = "library"
+srcs = ["vizdata.py"]
+# reads golden agents and chaos numbers at runtime: depend on their owners
+deps = ["//tests/golden:agent_cases", "//tests/golden:chaos_cases"]
+
+[[target]]
+name = "vizdata_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_vizdata.py"]
+deps = [":vizdata"]
+timeout = 300

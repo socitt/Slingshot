@@ -101,11 +101,13 @@ STRATEGIES = {"ga": GeneticAlgorithm, "es": EvolutionStrategy}
 def run(strategy, fitness_fn: Callable[[Genome], float] | None, generations: int,
         on_generation: Callable[[Generation], None] | None = None,
         batch_fitness: Callable[[list[Genome]], list[float]] | None = None,
+        on_population: Callable[[int, list[Genome], list[float]], None] | None = None,
         ) -> tuple[Genome, float, list[Generation]]:
     """Drive ``strategy`` for ``generations``; return the best genome
     ever evaluated, its fitness, and per-generation stats. Pass
     ``batch_fitness`` to score a whole population in one call (e.g. the
-    numpy backend) instead of ``fitness_fn`` per genome."""
+    numpy backend) instead of ``fitness_fn`` per genome. ``on_population``
+    sees every generation's genomes and fitnesses (for visualisation)."""
     if batch_fitness is None:
         if fitness_fn is None:
             raise ValueError("need fitness_fn or batch_fitness")
@@ -116,6 +118,8 @@ def run(strategy, fitness_fn: Callable[[Genome], float] | None, generations: int
     for gen in range(generations):
         pop = strategy.ask()
         fit = list(batch_fitness(pop))
+        if on_population:
+            on_population(gen, pop, fit)
         i = max(range(len(fit)), key=fit.__getitem__)
         if fit[i] > best_f:
             best_f, best_g = fit[i], list(pop[i])

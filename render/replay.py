@@ -38,9 +38,18 @@ class View:
         return None
 
 
-def view_for(task, target, width: int) -> View:
-    far = max([math.hypot(*target), math.hypot(*task.start)] +
-              [math.hypot(*t) for t in task.targets])
+def _fixed(t) -> bool:
+    return isinstance(t, tuple)
+
+
+def view_for(task, target, width: int, frames: list = ()) -> View:
+    """Fit the start, every fixed target and every recorded target
+    position (a moving Rendezvous target is read from the frames)."""
+    pts = [task.start] + [t for t in task.targets if _fixed(t)]
+    if _fixed(target):
+        pts.append(target)
+    pts += [f["target"] for f in frames if "target" in f]
+    far = max(math.hypot(*p) for p in pts)
     return View(extent=far * 1.15, width=width)
 
 
@@ -114,12 +123,13 @@ def render_episode(task, result, target, width: int, color: bool = False,
     """Yield (lines, is_last) per displayed frame."""
     frames = result.frames
     annotate_fuel(frames, task)
-    view = view_for(task, target, width - 2)  # minus the frame
+    view = view_for(task, target, width - 2, frames)  # minus the frame
     trail = []
     total = len(frames) - 1
     for i, f in enumerate(frames):
         trail.append(tuple(f["probe"]))
         if i % every and i != total:
             continue
-        lines = draw(view, f, trail[:-1], target, task.target_radius, body_masses, color)
+        where = f.get("target", target)  # a moving target is read per frame
+        lines = draw(view, f, trail[:-1], where, task.target_radius, body_masses, color)
         yield framed(lines, task.name, width=view.width) + hud(result, f, task, i, total, width), i == total

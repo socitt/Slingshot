@@ -46,3 +46,11 @@ deps = [":backend"]
 type = "test"
 runner = "pytest"
 srcs = ["test_backend.py"]
+
+[[target]]
+name = "rendezvous_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_rendezvous.py"]
+deps = [":navigation"]
+timeout = 120

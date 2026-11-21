@@ -10,6 +10,13 @@ meant to run on iSH (Linux on iOS), so the core never needs numpy.
 Built and tested with [lirk](https://github.com/socitt/lirk) from the
 first commit. lirk feedback lives in [docs/lirk-notes.md](docs/lirk-notes.md).
 
+## Learn the ideas
+
+[`docs/concepts/`](docs/concepts/README.md) explains everything this
+project touches, with its own numbers: simulating gravity, chaos and
+Lyapunov exponents, a neural net from scratch, learning by evolution,
+gravity assists, and how to test a chaotic system.
+
 ## Layout
 
 | Package | What |
@@ -17,8 +24,8 @@ first commit. lirk feedback lives in [docs/lirk-notes.md](docs/lirk-notes.md).
 | `vecmath/` | `Vec2` plus flat float-list helpers |
 | `physics/` | N-body gravity, RK4 + leapfrog, classic initial conditions |
 | `chaos/` | logistic map (bifurcations, Feigenbaum delta), Lorenz, Lyapunov exponents |
-| `render/` | phone-width plain-text plots and episode replay (ANSI, no curses) |
-| `cli/` | `chaos_demo`, `train` and `replay` entry points |
+| `render/` | phone-width plain-text plots, episode replay (ANSI, no curses), and the data export for the visual explainer |
+| `cli/` | `chaos_demo`, `train`, `replay` and `export_viz` entry points |
 | `tests/golden/` | golden trajectories and seeded scores (`data/`) and their generator |
 | `nn/` | tiny MLP from scratch; a flat list of floats is the genome |
 | `evolve/` | genetic algorithm and OpenAI-style evolution strategy (ask/tell, seeded) |
@@ -67,6 +74,10 @@ an independent cross-check.
    numpy; without it, `--backend numpy` exits with a clear message and
    the numpy tests skip individually. N-body gravity itself stays pure
    Python: with three bodies numpy's per-call overhead loses.
+7. ✅ Rendezvous: catch the moving outer planet. Launching at 36
+   phases of its orbit, the golden agent intercepts it at most of them
+   and at 10 of 12 never-seen phases (with 12 training phases an agent
+   memorised launch windows: 1/12 held-out).
 
 ## Training
 
