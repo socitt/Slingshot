@@ -94,3 +94,27 @@ def binary_with_probe(
     pos = [r1, 0.0, -r2, 0.0, 0.0, r_probe]
     vel = [0.0, w * r1, 0.0, -w * r2, -vp, 0.0]
     return System((m1, m2, probe_mass), softening=softening), pos, vel
+
+
+def star_planets(
+    planets: list[tuple[float, float, float]],
+    star_mass: float = 1.0,
+    softening: float = 0.0,
+) -> tuple[System, list[float], list[float]]:
+    """A star with planets ``(mass, radius, phase)`` on (initially)
+    circular counter-clockwise orbits, shifted to the centre-of-mass
+    frame. Planet-planet pulls make the orbits only nearly circular."""
+    masses = [star_mass]
+    pos, vel = [0.0, 0.0], [0.0, 0.0]
+    for m, r, phase in planets:
+        v = math.sqrt((star_mass + m) / r)
+        masses.append(m)
+        pos += [r * math.cos(phase), r * math.sin(phase)]
+        vel += [-v * math.sin(phase), v * math.cos(phase)]
+    system = System(tuple(masses), softening=softening)
+    cx, cy = system.center_of_mass(pos)
+    px, py = system.momentum(vel)
+    M = system.total_mass
+    pos = [p - (cx if k % 2 == 0 else cy) for k, p in enumerate(pos)]
+    vel = [v - (px / M if k % 2 == 0 else py / M) for k, v in enumerate(vel)]
+    return system, pos, vel

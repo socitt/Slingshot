@@ -2,7 +2,7 @@
 
 [[target]]
 name = "navigation"
-deps = ["//physics:gravity"]
+deps = ["//physics:gravity", "//physics:integrators", "//physics:orbits"]
 type = "library"
 srcs = ["navigation.py"]
 
@@ -25,3 +25,11 @@ type = "test"
 runner = "pytest"
 srcs = ["test_navigation.py"]
 timeout = 60
+
+[[target]]
+name = "trio_test"
+deps = [":navigation", "//physics:simulate"]
+type = "test"
+runner = "pytest"
+srcs = ["test_trio.py"]
+timeout = 120
