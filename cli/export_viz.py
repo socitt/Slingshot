@@ -17,7 +17,8 @@ from render.vizdata import AGENTS, build
 
 FULL_LEARNING = {
     # the classic: a whole population converging, generation by generation
-    "free": dict(sample_gens=[0, 1, 2, 3, 5, 8, 12, 20, 35, 60, 99], swarm=True, target_index=3),
+    # 37 is where ES evaluated its best-ever genome (the golden agent, 1.080)
+    "free": dict(sample_gens=[0, 1, 2, 3, 5, 8, 12, 20, 30, 37, 60, 99], swarm=True, target_index=3),
     # the field: just the best flight of a few generations (64 genomes is a lot of lines)
     "trio": dict(sample_gens=[0, 5, 15, 40, 80, 150, 250, 499], swarm=False, target_index=4),
 }

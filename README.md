@@ -87,6 +87,10 @@ python3 -m cli.train --task free --strategy es --generations 100 --pop 32 --seed
 
 ## Watching
 
+The visual explainer (replays, the swarm evolving, chaos plots) is
+built from `python3 -m cli.export_viz --out data.json`, which re-runs
+the golden agents' own training to sample it (a few minutes).
+
 ```sh
 python3 -m cli.replay --task assist --target 5   # the gravity-assist episode
 python3 -m cli.chaos_demo bifurcation
@@ -109,12 +113,14 @@ attempt starts from evidence:
 | larger ES sigma (0.25) | worse (≈0.05) |
 | curriculum: trio agent, fuel annealed 1.0 → 0.45 | worse (≈0.02–0.06) |
 | nearest planet's relative velocity as 2 more inputs | no gain (assist 0.27–0.30, trio 0.787 vs 0.829); reverted |
+| training-only shaping: credit a miss for the highest orbit reached | worse (0.14–0.20, ≤1/6): it learned to climb in any direction |
+| 12 → 24 → 36 `rendezvous` launch phases | held-out catches 1/12 → 6/12 → 10/12 (adopted) |
 
 The gravity assist itself is robust, though: independent `assist` runs
 keep rediscovering it. Outer-planet energy of +0.36 to +0.49 appeared in
 a successful episode in 5 of the 9 `assist` runs above, plus the golden agent's
-+0.38. Untried: novelty search, shaping on orbital energy, a recurrent
-or larger net.
++0.38. Untried: novelty search, shaping on *direction-aware* energy (toward
+the target), a recurrent or larger net.
 
 ## Conventions
 
