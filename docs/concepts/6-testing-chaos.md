@@ -50,3 +50,5 @@ hash and re-runs only what an edit affects. Caches can lie, so
 It caught one real stale pass during this project: a test that ran the
 `chaos_demo` program in a subprocess, edited without the test re-running
 (the full story is in [`docs/lirk-notes.md`](../lirk-notes.md), #9).
+
+**Next:** [7. The grand tour](7-grand-tour.md).

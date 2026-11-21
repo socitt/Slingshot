@@ -115,7 +115,7 @@ def learning_json(name: str, sample_gens: list[int], swarm: bool, target_index: 
     train(task, spec["strategy"], gens, pop or spec["pop"], spec["seed"],
                 on_generation=lambda g: curve.append([_r(g.best), _r(g.mean)]),
                 backend=spec.get("backend", "python"), on_population=on_population)
-    out = {"task": task.name, "target": _target_json(target), "swarm": swarm,
+    out = {"task": task.name, "target": _target_json(target), "swarm": swarm, "dt": task.dt * every,
            "generations": gens, "curve": curve,
            "samples": [dict(gen=g, **frames[g]) for g in sample]}
     if stages:

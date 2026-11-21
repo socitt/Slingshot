@@ -14,6 +14,7 @@ and pointing at the code that implements each one.
 | [4. Learning by evolution](4-neuroevolution.md) | How does it learn without gradients, and where does that get stuck? |
 | [5. Gravity assists](5-gravity-assists.md) | How can a planet give a probe free energy, and how do we know the agent used one? |
 | [6. Testing a chaotic system](6-testing-chaos.md) | How do you write reliable tests for something that amplifies rounding errors? |
+| [7. The grand tour](7-grand-tour.md) | What changes when the probe must visit several moving planets in order? |
 
 Read them in order if the ideas are new; each builds on the last. To
 see them move, run the terminal demos:
