@@ -1,0 +1,13 @@
+# 2-D vectors and flat float-list helpers used by every numeric package.
+
+[[target]]
+name = "vectors"
+type = "library"
+srcs = ["vectors.py"]
+
+[[target]]
+name = "vectors_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_vectors.py"]
+deps = [":vectors"]

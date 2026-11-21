@@ -1,0 +1,24 @@
+# Golden reference data. data/ is declared as a directory so adding or
+# editing any golden file invalidates the tests that read it.
+
+[[target]]
+name = "physics_cases"
+deps = ["//physics:orbits", "//physics:simulate"]
+type = "library"
+srcs = ["physics_cases.py"]
+data = ["data"]
+
+[[target]]
+name = "regen_physics"
+deps = [":physics_cases"]
+type = "library"
+srcs = ["regen_physics.py"]
+
+[[target]]
+name = "physics_golden_test"
+deps = [":physics_cases"]
+type = "test"
+runner = "pytest"
+srcs = ["test_physics_golden.py"]
+data = ["data"]
+timeout = 120

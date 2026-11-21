@@ -1,0 +1,61 @@
+# Newtonian N-body gravity, integrators (RK4, leapfrog) and classic
+# initial conditions.
+
+[[target]]
+name = "integrators"
+deps = ["//vecmath:vectors"]
+type = "library"
+srcs = ["integrators.py"]
+
+[[target]]
+name = "gravity"
+type = "library"
+srcs = ["gravity.py"]
+
+[[target]]
+name = "orbits"
+deps = [":gravity"]
+type = "library"
+srcs = ["orbits.py"]
+
+[[target]]
+name = "simulate"
+deps = [":gravity", ":integrators"]
+type = "library"
+srcs = ["simulate.py"]
+
+[[target]]
+name = "integrators_test"
+deps = [":integrators"]
+type = "test"
+runner = "pytest"
+srcs = ["test_integrators.py"]
+
+[[target]]
+name = "gravity_test"
+deps = [":gravity"]
+type = "test"
+runner = "pytest"
+srcs = ["test_gravity.py"]
+
+[[target]]
+name = "conservation_test"
+deps = [":orbits", ":simulate"]
+type = "test"
+runner = "pytest"
+srcs = ["test_conservation.py"]
+timeout = 120
+
+[[target]]
+name = "orbits_test"
+deps = [":orbits", ":simulate"]
+type = "test"
+runner = "pytest"
+srcs = ["test_orbits.py"]
+timeout = 120
+
+[[target]]
+name = "kepler_unittest"
+deps = [":orbits"]
+type = "test"
+srcs = ["test_kepler_unittest.py"]

@@ -1,0 +1,4 @@
+.lirk-cache.json
+.lirk-cache.json.*.tmp
+__pycache__/
+*.pyc
