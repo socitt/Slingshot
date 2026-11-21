@@ -21,8 +21,9 @@ this repo, the entry says so.
 | M2 chaos lab | 0 | 6 | 2 | 2 | 10 | 0 | 1 (see #9 — caught by `lirk verify`) |
 | M3 MLP + neuroevolution | 0 | 4 | 1 | 1 | 6 | 0 | 0 |
 | M4 three-body field + M5 replay | 5 | 3 | 3 | 1 | 12 | 0 | 0 |
+| M6 numpy backend | 0 | 4 | 1 | 3 | 8 | 0 | 0 |
 
-Running total: **43** (8 of them exited 1: all genuine test/build failures or deliberate probes, none lirk's fault). (Updated when committing; the log is authoritative.)
+Running total: **51**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 9 exited 1: genuine test/build failures, deliberate probes, and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -33,6 +34,8 @@ Running total: **43** (8 of them exited 1: all genuine test/build failures or de
 | 2026-11-21 | `lirk verify --sample 5` (seed 1905431998) | 5 verified, 0 stale, 0 not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` (seed not captured — I piped to `tail`) | 5 verified, 0 stale, 0 not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` (seed 745970699, 61 cached results) | 5 verified, 0 stale, 0 not cached — OK |
+| 2026-11-21 | `lirk verify --sample 5` (seed 1218428339) | interrupted by my own `\| head -1` (SIGPIPE) — no result |
+| 2026-11-21 | `lirk verify --sample 5` (seed 3760781111, 62 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 
 ## Cache-correctness probes
 
@@ -298,3 +301,49 @@ What this repo does instead: `//cli:replay_cli_test` depends on
 `//tests/golden:agent_cases`, the target that owns `tests/golden/data`
 as its `data` — Bazel's filegroup idea. Worth a line in the docs as
 *the* way to share a data directory between packages.
+
+### 13. A pytest module that skips itself fails under lirk ("contained no tests")
+
+*Status: open in lirk. Avoided in this repo by skipping per test, not per module (explicit, commented in `npbackend/test_batch.py`).*
+
+The standard way to make a test module optional on a dependency is a
+module-level `pytest.importorskip`. In a throwaway repo:
+
+```python
+# pkg/test_modskip.py
+import pytest
+np = pytest.importorskip("numpy_not_installed_xyz")
+def test_x():
+    assert np
+```
+
+```
+$ lirk test //...
+  FAIL   //pkg:modskip: 1 of 1 src files failed: test_modskip -- contained no tests: test_modskip
+...
+collected 0 items / 1 skipped
+============================== 1 skipped in 0.01s ==============================
+  PASS   //pkg:partskip
+lirk: 1/2 tests passed
+lirk: FAILED
+```
+
+pytest itself exits 5 here (`python3 -m pytest test_modskip.py` → rc 5),
+and lirk maps exit 5 to "contained no tests". But the module *did* say
+something: it was skipped on purpose, and pytest printed `1 skipped`.
+For slingshot this matters exactly on iSH, where numpy may be
+unavailable: the optional-backend tests would turn `lirk test //...`
+red. A file with *no* tests and a file that *skipped itself* are
+different situations; lirk could tell them apart from pytest's summary
+line (or the docs could recommend per-test skips, as done here).
+
+Two related things that work well:
+- A target whose tests all skip at function level passes, and is
+  cached. Installing numpy later changes lirk's Python-environment
+  fingerprint, so the target re-runs and the skipped tests actually
+  execute — no stale PASS from a skip. Confirmed: switching between a
+  numpy-free venv and the system interpreter re-ran all 25 targets each
+  way.
+- In the numpy-free venv (`python3 -m venv`, `pip install -e ../lirk
+  pytest`), `lirk test //...` passed 25/25 with the numpy tests
+  reported as skipped. That is the closest this container gets to iSH.

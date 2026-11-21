@@ -22,6 +22,7 @@ first commit. lirk feedback lives in [docs/lirk-notes.md](docs/lirk-notes.md).
 | `tests/golden/` | golden trajectories and seeded scores (`data/`) and their generator |
 | `nn/` | tiny MLP from scratch; a flat list of floats is the genome |
 | `evolve/` | genetic algorithm and OpenAI-style evolution strategy (ask/tell, seeded) |
+| `npbackend/` | optional numpy batch evaluator (never imported by the core) |
 | `env/` | navigation task (thrust-limited probe, optional N-body field), scoring, training loop |
 
 ## Building and testing
@@ -58,7 +59,13 @@ an independent cross-check.
      work bookkeeping (`Result.work`) is how assists are detected.
 5. ✅ Terminal replay: `python3 -m cli.replay` (golden assist agent),
    `--task free|trio|assist --target N`, `--plain` for a still.
-6. Optional numpy backend.
+6. ✅ Optional numpy backend: `--backend numpy` (or
+   `SLINGSHOT_BACKEND=numpy`) scores a whole population × targets in
+   lockstep — 12–21× faster here, matching the Python backend to 2e-16
+   (free space) / 4e-9 (chaotic field). Nothing in the core imports
+   numpy; without it, `--backend numpy` exits with a clear message and
+   the numpy tests skip individually. N-body gravity itself stays pure
+   Python: with three bodies numpy's per-call overhead loses.
 
 ## Training
 
