@@ -1,5 +1,5 @@
 """Golden physics cases: one function per case, shared by the golden
-test and by ``regen_physics.py`` so the two can never disagree about
+test and by ``regen.py`` so the two can never disagree about
 how a trajectory was produced.
 
 Chaos makes long float trajectories fragile (an x87 build on iSH can

@@ -1,0 +1,18 @@
+# Entry points. Each is covered by a test target that runs it as a
+# subprocess (lirk has no binary target type by design).
+
+[[target]]
+name = "chaos_demo"
+deps = ["//chaos:logistic", "//chaos:lorenz", "//chaos:lyapunov", "//physics:orbits", "//render:canvas"]
+type = "library"
+srcs = ["chaos_demo.py"]
+
+[[target]]
+name = "chaos_demo_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_chaos_demo.py"]
+# Runs `python3 -m cli.chaos_demo` in a subprocess, which lirk's import
+# check cannot see -- this dep must be declared by hand (lirk-notes #9).
+deps = [":chaos_demo"]
+timeout = 300

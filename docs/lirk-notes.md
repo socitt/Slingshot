@@ -18,14 +18,17 @@ this repo, the entry says so.
 | Milestone | build | test | fix | verify | total | `signal: hangup` | cache disagreements |
 |---|---|---|---|---|---|---|---|
 | M1 physics core | 4 | 7 | 3 | 1 | 15 | 0 | 0 |
+| M2 chaos lab | 0 | 6 | 2 | 2 | 10 | 0 | 1 (see #9 — caught by `lirk verify`) |
 
-Running total: **15**. (Updated when committing; the log is authoritative.)
+Running total: **25**. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
 | Date | Command | Result |
 |---|---|---|
 | 2026-11-21 | `lirk verify --sample 5` (seed 1720564241) | 5 verified, 0 stale, 1 target(s) not cached — OK |
+| 2026-11-21 | `lirk verify //cli/...` (deliberate probe, #9) | 0 verified, **1 stale** — FAILED (expected; the probe's point) |
+| 2026-11-21 | `lirk verify --sample 5` (seed 1905431998) | 5 verified, 0 stale, 0 not cached — OK |
 
 ## Cache-correctness probes
 
@@ -175,3 +178,61 @@ A consequence of the mode-namespaced cache: immediately after a green
 built from identical inputs. Not a correctness problem, just repeated
 work — noticeable on iSH. If intentional, a sentence in "how it works"
 would prevent the "why is it rebuilding?" moment.
+
+### 9. BUG/DOCS (high): the recommended entry-point test pattern caches a stale PASS unless the dep is hand-declared
+
+*Status: open in lirk. In this repo the dep is declared by hand, with a comment in `cli/BUILD.lirk`.*
+
+getting-started.md "Covering your entry point" recommends a test that
+runs the program with `subprocess.run([sys.executable, "-m", "cli.render", ...])`.
+That test never *imports* the entry-point module, so lirk's import
+check sees no edge, `lirk build` is happy without one, and `lirk fix`
+adds nothing (it did add every other dep in the repo correctly):
+
+```
+$ lirk fix --dry-run
+  ...                      # 12 targets listed; //cli:chaos_demo_test is not among them
+lirk: would add 23 dep(s) to 12 target(s), 0 need a hand fix
+```
+
+With no dep declared, editing the entry point leaves the test cached:
+
+```
+$ sed -i 's/print("chaos-demo: ok")/print("chaos-demo: BROKEN"); return 1/' cli/chaos_demo.py
+$ lirk test //cli:chaos_demo_test
+  cached  //cli:chaos_demo_test
+lirk: 1/1 tests passed
+lirk: OK
+$ lirk verify //cli/...
+  STALE  //cli:chaos_demo_test (test): cached as passing, fails when re-run: 1 of 1 src files failed: test_chaos_demo
+...
+lirk: an input these targets depend on is not in their fingerprint -- often a file read at runtime but not declared in `data`
+lirk: 0 verified, 1 stale, 1 target(s) not cached
+lirk: FAILED
+```
+
+That's a stale cached PASS on exactly the target the docs say to write
+first. `lirk verify` did its job. The docs' example does show
+`deps = [":render"]`, but never says that this dep is the one the import
+check *can't* enforce and that `lirk fix` won't add, so it reads as
+boilerplate. Suggestions: say so in the docs; and/or have the import
+check also scan test srcs for string literals passed after `"-m"` (a
+cheap heuristic that would catch the documented pattern exactly).
+
+Also, the `verify` hint "often a file read at runtime but not declared
+in `data`" points the wrong way here: the missing input is a Python
+module run in a subprocess. Mentioning that case in the hint would save
+a detour.
+
+After declaring `deps = [":chaos_demo"]`, the same edit makes
+`lirk test //cli/...` FAIL as it should, and reverting returns `OK`.
+
+### 10. `lirk fix` relies on transitive deps for a direct import (fine, worth knowing)
+
+`cli/chaos_demo.py` imports `physics.integrators` directly; `lirk fix`
+didn't add `//physics:integrators` because `//chaos:lorenz` already
+brings it in transitively. That matches the documented rule (the
+closure counts), but it means a later refactor of `chaos` that drops
+the dependency turns `cli:chaos_demo` into a build failure in a package
+nobody touched. Not a bug; a note for anyone expecting Bazel's
+"strict deps" behaviour.

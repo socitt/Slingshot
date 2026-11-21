@@ -1,0 +1,41 @@
+# Chaos lab: logistic map, Lorenz system, Lyapunov exponents.
+
+[[target]]
+name = "logistic"
+type = "library"
+srcs = ["logistic.py"]
+
+[[target]]
+name = "lorenz"
+deps = ["//physics:integrators"]
+type = "library"
+srcs = ["lorenz.py"]
+
+[[target]]
+name = "lyapunov"
+deps = ["//physics:integrators"]
+type = "library"
+srcs = ["lyapunov.py"]
+
+[[target]]
+name = "logistic_test"
+deps = [":logistic"]
+type = "test"
+runner = "pytest"
+srcs = ["test_logistic.py"]
+timeout = 60
+
+[[target]]
+name = "lyapunov_test"
+deps = [":logistic", ":lorenz", ":lyapunov", "//physics:orbits"]
+type = "test"
+runner = "pytest"
+srcs = ["test_lyapunov.py"]
+timeout = 300
+
+[[target]]
+name = "lorenz_unittest"
+deps = [":lorenz"]
+type = "test"
+srcs = ["test_lorenz_unittest.py"]
+timeout = 60

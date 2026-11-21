@@ -1,0 +1,13 @@
+# Terminal output: plain-text plots now, replay of agents later.
+
+[[target]]
+name = "canvas"
+type = "library"
+srcs = ["canvas.py"]
+
+[[target]]
+name = "canvas_test"
+deps = [":canvas"]
+type = "test"
+runner = "pytest"
+srcs = ["test_canvas.py"]

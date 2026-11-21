@@ -16,8 +16,11 @@ first commit. lirk feedback lives in [docs/lirk-notes.md](docs/lirk-notes.md).
 |---|---|
 | `vecmath/` | `Vec2` plus flat float-list helpers |
 | `physics/` | N-body gravity, RK4 + leapfrog, classic initial conditions |
-| `tests/golden/` | short-horizon golden trajectories (`data/`) and their generator |
-| `chaos/`, `nn/`, `evolve/`, `env/`, `render/`, `cli/` | coming in later milestones |
+| `chaos/` | logistic map (bifurcations, Feigenbaum delta), Lorenz, Lyapunov exponents |
+| `render/` | phone-width plain-text plots |
+| `cli/` | `chaos_demo` entry point (`python3 -m cli.chaos_demo lorenz`) |
+| `tests/golden/` | golden trajectories and seeded scores (`data/`) and their generator |
+| `nn/`, `evolve/`, `env/` | coming in later milestones |
 
 ## Building and testing
 
@@ -34,7 +37,7 @@ an independent cross-check.
 ## Milestones
 
 1. ✅ Physics core with energy-conservation and orbit-period tests.
-2. Chaos lab: bifurcation, Lorenz, Lyapunov exponents.
+2. ✅ Chaos lab: bifurcation, Lorenz, Lyapunov exponents.
 3. MLP + neuroevolution on navigation without gravity.
 4. Navigation in a three-body field.
 5. Terminal replay of the best agent.
@@ -47,5 +50,5 @@ an independent cross-check.
   `conftest.py` makes the global RNG raise inside tests.
 - Golden tests use short horizons with tolerances, or invariants —
   chaos amplifies ulp-level platform differences.
-- Regenerate goldens with `python3 -m tests.golden.regen_physics`, only
+- Regenerate goldens with `python3 -m tests.golden.regen physics`, only
   after an intentional numerical change.

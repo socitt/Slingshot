@@ -1,5 +1,5 @@
 # Golden reference data. data/ is declared as a directory so adding or
-# editing any golden file invalidates the tests that read it.
+# editing any golden file invalidates the targets that read it.
 
 [[target]]
 name = "physics_cases"
@@ -9,16 +9,40 @@ srcs = ["physics_cases.py"]
 data = ["data"]
 
 [[target]]
-name = "regen_physics"
-deps = [":physics_cases"]
+name = "chaos_cases"
+deps = ["//chaos:logistic", "//chaos:lorenz", "//chaos:lyapunov"]
 type = "library"
-srcs = ["regen_physics.py"]
+srcs = ["chaos_cases.py"]
+data = ["data"]
+
+[[target]]
+name = "regen"
+deps = [":chaos_cases", ":physics_cases"]
+type = "library"
+srcs = ["regen.py"]
 
 [[target]]
 name = "physics_golden_test"
-deps = [":physics_cases"]
 type = "test"
 runner = "pytest"
 srcs = ["test_physics_golden.py"]
+deps = [":physics_cases"]
 data = ["data"]
+timeout = 120
+
+[[target]]
+name = "chaos_golden_test"
+deps = [":chaos_cases"]
+type = "test"
+runner = "pytest"
+srcs = ["test_chaos_golden.py"]
+data = ["data"]
+timeout = 180
+
+[[target]]
+name = "regen_test"
+deps = [":regen"]
+type = "test"
+runner = "pytest"
+srcs = ["test_regen.py"]
 timeout = 120
