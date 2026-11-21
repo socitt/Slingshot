@@ -27,8 +27,9 @@ this repo, the entry says so.
 | Post-M6: generalisation, fixes, #14 probes | 1 | 10 | 1 | 1 | 13 | 0 | 0 |
 | lirk 1.0.1 upgrade check | 1 | 4 | 1 | 1 | 7 | 0 | 0 |
 | Experiments, timing check | 0 | 2 | 0 | 1 | 3 | 0 | 0 |
+| lirk main `8b922ed` (docs rewrite) | 0 | 2 | 0 | 0 | 2 | 0 | 0 |
 
-Running total: **73**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
+Running total: **75**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -539,3 +540,36 @@ What worked: the MANUAL messages are specific and say what to do; the
 drafted deps for the packages that didn't touch `env/` matched the
 hand-written ones (modulo the coarser target split); after `init`,
 `lirk test //...` passed 5 of the 9 drafted test targets as-is.
+
+## lirk main `8b922ed`: docs rewrite (PR #5), 2026-11-21
+
+`git merge --ff-only origin/main` (`53fab38..8b922ed`), `pip install -e
+../lirk` → still `lirk 1.0.1`. The only code changes are three
+comment/docstring paths (`docs/` → `docs/dev/`). slingshot's cache
+survived the reinstall: `lirk test //...` → 49 cached, `lirk: OK`.
+
+- **#2 leftovers fixed.** `docs/commands.md`'s `lirk test` section no
+  longer names a runner ("Each test file runs in its own process,
+  with output passed through exactly as your test runner printed it"),
+  and the "Two behaviours" list with three bullets is gone.
+- **#1 is documented** in `docs/adopting.md`: "lirk runs pytest with
+  your repo root as its root directory, so a repo-level `conftest.py`
+  is always loaded."
+- **#9 got worse in the docs (regression).** The new "Testing your
+  entry point" section in `docs/adopting.md` shows only the test file
+  (`subprocess.run([sys.executable, "-m", "cli.main", "--help"], ...)`).
+  The old version at least showed a BUILD block with
+  `deps = [":render"]`. The new one shows no BUILD block and never says
+  the test needs a dep on the entry point's target. Followed exactly,
+  it produces #9's stale cached PASS: the test imports nothing from
+  `cli`, so neither the import check nor `lirk fix` / `lirk init` adds
+  the edge, and editing `cli/main.py` leaves the test `cached`.
+  Suggested text: "This test imports nothing from your app, so lirk
+  can't see the dependency: add the entry point's target to `deps`
+  yourself (`deps = [":main"]`). `lirk fix` won't add it."
+- **#13 not covered.** `docs/troubleshooting.md` explains
+  `contained no tests` only as "That test file defines no tests",
+  which is wrong for a module-level `pytest.importorskip` (the file has
+  tests; it skipped itself). Until lirk tells the two apart, a line
+  recommending per-test skips for optional dependencies would help.
+- #12, #14 and #15 are code issues, unchanged by a docs PR.
