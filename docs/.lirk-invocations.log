@@ -69,3 +69,5 @@
 2026-11-21T10:47:53Z rc=0 secs=0 lirk fix --dry-run
 2026-11-21T10:47:54Z rc=0 secs=0 lirk verify --sample 5
 2026-11-21T16:42:54Z rc=0 secs=0 lirk test //...
+2026-11-21T16:43:22Z rc=0 secs=22 lirk test //... --force
+2026-11-21T16:43:31Z rc=0 secs=1 lirk verify --sample 5

@@ -26,8 +26,9 @@ this repo, the entry says so.
 | M6 numpy backend | 0 | 4 | 1 | 2 | 7 | 0 | 0 |
 | Post-M6: generalisation, fixes, #14 probes | 1 | 10 | 1 | 1 | 13 | 0 | 0 |
 | lirk 1.0.1 upgrade check | 1 | 4 | 1 | 1 | 7 | 0 | 0 |
+| Experiments, timing check | 0 | 2 | 0 | 1 | 3 | 0 | 0 |
 
-Running total: **70**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
+Running total: **73**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -42,6 +43,7 @@ Running total: **70**, including one run under a numpy-free venv (logged by hand
 | 2026-11-21 | `lirk verify --sample 5` (seed 3760781111, 62 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` (seed 2024422273, 64 cached results) | 5 verified, 0 stale, 0 not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` on lirk 1.0.1 (seed 3991276520, 74 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
+| 2026-11-21 | `lirk verify --sample 5` on 1.0.1 (seed 329176913, 74 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 
 ## Cache-correctness probes
 
@@ -74,11 +76,26 @@ Running total: **70**, including one run under a numpy-free venv (logged by hand
 | after M3 (20 test targets, 147 pytest tests) | `lirk test //... --force` | 13.3 s |
 | same tree | `python3 -m pytest -q` from root | 7.9 s |
 
+| lirk 1.0.1, 25 test targets, 187 tests | `lirk test //... --force` | 21.9 s in tests |
+
 The gap is lirk's one-process-per-src model (interpreter + pytest
 startup per target), which is by design.
 
 Most of the M4 build invocations were the #12 probe (cross-package and
 out-of-repo `data`).
+
+### Timeout headroom for iSH (from 1.0.1's per-target durations)
+
+lirk 1.0.1 prints each target's duration and a "slowest" summary, which
+answered "are my `timeout`s safe on iSH?" directly. Heaviest targets vs
+their `timeout`: `//chaos:lyapunov_test` 4.9 s / 300 s (61×),
+`//npbackend:batch_test` 3.3 s / 120 s (36×, and mostly skipped where
+numpy is absent), `//evolve:training_smoke_test` 2.2 s / 180 s (82×),
+`//cli:train_test` 2.2 s / 300 s, `//tests/golden:agent_golden_test`
+1.3 s / 120 s. iSH emulates x86 in software, so expect a 10–30×
+slowdown: every target keeps at least ~36× headroom here, and the full
+suite should take roughly 4–11 minutes there. Not yet measured on a
+device.
 
 ## Friction, bugs and confusing messages
 
