@@ -446,5 +446,79 @@ then `pip install -e ../lirk` → `lirk 1.0.1`.
 Still open from this repo's list: #9 (subprocess entry-point tests
 need a hand-declared dep), #12 (`data` may escape the repo), #13
 (module-level skip reported as "contained no tests"), #14 ("did you
-mean"). PR #3 says its docs changes cover #2–#4; I haven't re-read
-the docs to check.
+mean"). PR #3 says its docs changes cover #2–#4. Re-read on `53fab38`: the
+subcommand count, the non-`.py` srcs message and the gitignore lists
+(now the same four lines in README, build-format and getting-started)
+are fixed. Two leftovers in getting-started.md:
+- the `lirk test` row of the command table still says "Run each test
+  src via `python3 -m unittest`", with no mention of `runner = "pytest"`;
+- "Two behaviours worth knowing up front:" is followed by three bullets.
+
+### 15. `lirk init` trial on a copy of slingshot: silently skips `env/`, and reproduces #9
+
+*Status: open in lirk (1.0.1, `53fab38`). Run on a throwaway copy
+(`git archive HEAD`, every `BUILD.lirk` and `.lirk-root` deleted), not on
+this repo, and not counted in the tally.*
+
+```
+$ lirk init --dry-run
+lirk: no .lirk-root found in any parent directory; using the current directory as the repo root: /tmp/claude-0/initcopy
+  would create chaos/BUILD.lirk: library :chaos (3 srcs); test :chaos_test (3 srcs, pytest)
+  ...                                  # 9 packages listed; env/ is not among them
+lirk: dry run -- would draft 9 BUILD.lirk file(s); deps are derived from imports once the files exist
+$ lirk init
+  ...
+  MANUAL //tests/golden:golden: agent_cases.py imports 'env.navigation' -- no target declares env/navigation.py -- declare it in some target's srcs, then run fix again
+lirk: drafted 9 BUILD.lirk file(s), 18 target(s); 20 need a hand fix
+lirk: next: review the files, declare runtime-read files as `data`, then `lirk test //...`
+```
+
+**a. `env/` is skipped by name, with no message (bug).** slingshot's
+`env/` holds 4 modules and 3 test files. `lirk/scaffold.py` has
+`SKIP_DIRS = {"__pycache__", "node_modules", "venv", "env", "build",
+"dist", "site-packages"}`, and the same function already detects real
+virtualenvs by their `pyvenv.cfg` (`_is_venv`). So the name list adds
+nothing for real venvs and drops real packages called `env`, `build` or
+`dist`. All 20 MANUAL lines are a consequence of the missing package.
+Suggestions: rely on `pyvenv.cfg` (plus `site-packages` /
+`__pycache__`), and print a `skipped env/ (looks like a virtualenv)`
+line for anything skipped by name. `env/` is a common package name
+(RL environments, settings), which is how slingshot ended up with one.
+
+**b. #9 again, from the other side.** The drafted `//cli:cli_test` has
+no `deps`: its tests run `python3 -m cli.<tool>` in a subprocess and
+import nothing from `cli`. In the drafted tree `//cli:cli` itself fails
+to build (it imports the undeclared `env`), yet:
+
+```
+$ lirk test //...
+  PASS   //cli:cli_test (4.1s)
+$ lirk build //cli:cli
+lirk: 0 built, 5 cached, 1 failed, 0 skipped
+lirk: FAILED
+```
+
+A green test sitting on top of a red library: the entry-point tests go
+green with nothing they exercise in their fingerprint. `init` can't
+infer the edge from imports, but it could make the same-package
+library a dep of the same-package test target by default (the draft
+puts every test of a package in one target anyway), which would cover
+the documented entry-point pattern.
+
+**c. Golden `data/` directories are not drafted (expected, but
+detectable).** `tests/golden/data/{physics,chaos,agents}/` hold only
+JSON, are read at runtime, and got no `data` entry. The closing
+`next: ... declare runtime-read files as data` line does say so. A
+directory containing no `.py` files, next to srcs in the same package,
+is a strong hint: listing such directories as "possible `data`" would
+turn the generic reminder into a specific one.
+
+**d. Minor.** "(1 srcs)" for singular counts. The draft puts each
+package into one library plus one test target, which is a sensible
+start but drops per-file invalidation and per-target `timeout`; the
+header comment could say "split further as needed".
+
+What worked: the MANUAL messages are specific and say what to do; the
+drafted deps for the packages that didn't touch `env/` matched the
+hand-written ones (modulo the coarser target split); after `init`,
+`lirk test //...` passed 5 of the 9 drafted test targets as-is.
