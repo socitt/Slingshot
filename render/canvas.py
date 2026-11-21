@@ -70,9 +70,10 @@ def density_plot(
     return rows
 
 
-def framed(rows: list[str], title: str = "", footer: str = "") -> list[str]:
-    """Box the plot; the result is ``len(rows[0]) + 2`` wide."""
-    w = len(rows[0]) if rows else len(title)
+def framed(rows: list[str], title: str = "", footer: str = "", width: int | None = None) -> list[str]:
+    """Box the plot; the result is ``width + 2`` wide. Pass ``width``
+    when rows contain ANSI escapes (their ``len`` overcounts)."""
+    w = width if width is not None else (len(rows[0]) if rows else len(title))
     head = f" {title} "[:w] if title else ""
     out = ["+" + head + "-" * (w - len(head)) + "+"]
     out += ["|" + r + "|" for r in rows]

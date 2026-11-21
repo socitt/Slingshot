@@ -45,3 +45,57 @@ def test_training_curve_went_up(free):
 def test_weights_load_through_the_agent_path(free):
     g, net = free
     assert policy_from_genome(g["mlp"]["params"]).params == net.params
+
+
+# --- milestone 4: agents in the three-body field ---------------------
+#
+# Field episodes are mildly chaotic (lambda ~ 1 over T = 8), so a
+# platform ulp difference can grow ~1e3x: compare scores to 1e-6, not
+# 1e-9. Reached flags could only flip for a trajectory grazing the
+# capture radius; test_no_episode_grazes_the_capture_radius pins the
+# margin (~2e-4 when generated) far above any amplified rounding error.
+
+from env.navigation import ASSIST, HELDOUT, TRIO  # noqa: E402
+
+ZERO_THRUST = {"trio": 0.191, "assist": 0.191}
+
+
+@pytest.mark.parametrize("name,task", [("trio", TRIO), ("assist", ASSIST)])
+def test_field_agent_rescores(name, task):
+    g = load_golden(name)
+    net = MLP.from_dict(g["mlp"])
+    assert {k: g[k] for k in CASES[name]} == CASES[name]
+    assert evaluate(task, net) == pytest.approx(g["score"], abs=1e-6)
+    assert evaluate(task, net, HELDOUT[name]) == pytest.approx(g["heldout_score"], abs=1e-6)
+    assert [run_episode(task, net, t).reached for t in task.targets] == g["reached"]
+
+
+def test_trio_agent_navigates_the_field():
+    g = load_golden("trio")
+    assert sum(g["reached"]) >= 5            # of 6 training targets
+    assert g["score"] > ZERO_THRUST["trio"] + 0.5
+    # Honest limitation, pinned so a better agent shows up as a change:
+    # it has learned routes, not a general controller.
+    assert sum(g["heldout_reached"]) <= 3
+
+
+def test_assist_agent_beats_doing_nothing_and_uses_a_planet():
+    g = load_golden("assist")
+    assert g["score"] > ZERO_THRUST["assist"] + 0.1
+    assert sum(g["reached"]) >= 3
+    # at least one successful episode got real energy from a planet
+    # (bodies 1 and 2; body 0 is the star)
+    assists = [max(w[1:]) for w, ok in zip(g["work"], g["reached"]) if ok]
+    assert max(assists) > 0.3
+
+
+@pytest.mark.parametrize("name,task", [("trio", TRIO), ("assist", ASSIST)])
+def test_no_episode_grazes_the_capture_radius(name, task):
+    import math
+    net = MLP.from_dict(load_golden(name)["mlp"])
+    margin = math.inf
+    for t in task.targets + HELDOUT[name]:
+        res = run_episode(task, net, t, record=True)
+        margin = min([margin] + [abs(math.dist(f["probe"], t) - task.target_radius)
+                                 for f in res.frames])
+    assert margin > 1e-7

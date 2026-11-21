@@ -265,5 +265,43 @@
    -0.08690449026640762
   ]
  },
- "heldout_score": 1.0764959402079748
+ "heldout_score": 1.0764959402079748,
+ "reached": [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true
+ ],
+ "heldout_reached": [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true
+ ],
+ "work": [
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  []
+ ]
 }

@@ -11,7 +11,8 @@ import argparse
 import sys
 import time
 
-from env.navigation import FREE_HELDOUT, TASKS
+from env.navigation import HELDOUT, TASKS
+from env.agent import policy_from_genome
 from env.training import evaluate, load_agent, save_agent, task_by_name, train
 from evolve.strategies import STRATEGIES
 
@@ -56,12 +57,11 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.time()
     res = train(task, args.strategy, args.generations, args.pop, args.seed, init, report)
     elapsed = time.time() - t0
-    from env.agent import policy_from_genome
     net = policy_from_genome(res.genome)
     summary = {"task": task.name, "strategy": args.strategy, "generations": args.generations,
                "pop": args.pop, "seed": args.seed, "score": res.score}
-    if task.name == "free":
-        summary["heldout_score"] = evaluate(task, net, FREE_HELDOUT)
+    if task.name in HELDOUT:
+        summary["heldout_score"] = evaluate(task, net, HELDOUT[task.name])
     print(f"best {res.score:+.4f} in {elapsed:.1f}s ({args.strategy}, seed {args.seed})")
     if "heldout_score" in summary:
         print(f"held-out targets {summary['heldout_score']:+.4f}")

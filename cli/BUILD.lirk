@@ -31,3 +31,19 @@ srcs = ["test_train.py"]
 # Subprocess-only, like chaos_demo_test: declared by hand (lirk-notes #9).
 deps = [":train"]
 timeout = 300
+
+[[target]]
+name = "replay"
+deps = ["//env:training", "//render:canvas", "//render:replay"]
+type = "library"
+srcs = ["replay.py"]
+
+[[target]]
+name = "replay_cli_test"
+type = "test"
+runner = "pytest"
+srcs = ["test_replay_cli.py"]
+# Subprocess-only (lirk-notes #9). The replay also reads the golden
+# agents at runtime, so their target is a dep too.
+deps = [":replay", "//tests/golden:agent_cases"]
+timeout = 120

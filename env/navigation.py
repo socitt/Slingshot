@@ -253,4 +253,10 @@ TRIO = Task(
 )
 TRIO_HELDOUT = ring(6, 2.4)
 
-TASKS = {"free": FREE, "trio": TRIO}
+#: TRIO on a budget: 0.45 delta-v barely covers the climb, and arriving
+#: early is worth less than saving fuel, so energy from a planet flyby
+#: (positive ``Result.work`` for a planet) pays.
+ASSIST = Task(**{**TRIO.__dict__, "name": "assist", "fuel": 0.45, "fuel_weight": 0.5})
+
+TASKS = {"free": FREE, "trio": TRIO, "assist": ASSIST}
+HELDOUT = {"free": FREE_HELDOUT, "trio": TRIO_HELDOUT, "assist": TRIO_HELDOUT}

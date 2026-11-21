@@ -20,8 +20,9 @@ this repo, the entry says so.
 | M1 physics core | 4 | 7 | 3 | 1 | 15 | 0 | 0 |
 | M2 chaos lab | 0 | 6 | 2 | 2 | 10 | 0 | 1 (see #9 — caught by `lirk verify`) |
 | M3 MLP + neuroevolution | 0 | 4 | 1 | 1 | 6 | 0 | 0 |
+| M4 three-body field + M5 replay | 5 | 3 | 3 | 1 | 12 | 0 | 0 |
 
-Running total: **31**. (Updated when committing; the log is authoritative.)
+Running total: **43** (8 of them exited 1: all genuine test/build failures or deliberate probes, none lirk's fault). (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -31,6 +32,7 @@ Running total: **31**. (Updated when committing; the log is authoritative.)
 | 2026-11-21 | `lirk verify //cli/...` (deliberate probe, #9) | 0 verified, **1 stale** — FAILED (expected; the probe's point) |
 | 2026-11-21 | `lirk verify --sample 5` (seed 1905431998) | 5 verified, 0 stale, 0 not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` (seed not captured — I piped to `tail`) | 5 verified, 0 stale, 0 not cached — OK |
+| 2026-11-21 | `lirk verify --sample 5` (seed 745970699, 61 cached results) | 5 verified, 0 stale, 0 not cached — OK |
 
 ## Cache-correctness probes
 
@@ -54,6 +56,9 @@ Running total: **31**. (Updated when committing; the log is authoritative.)
 
 The gap is lirk's one-process-per-src model (interpreter + pytest
 startup per target), which is by design.
+
+Most of the M4 build invocations were the #12 probe (cross-package and
+out-of-repo `data`).
 
 ## Friction, bugs and confusing messages
 
@@ -260,3 +265,36 @@ nobody touched. Not a bug; a note for anyone expecting Bazel's
   was caught by the subprocess CLI test, not by unit tests — the
   entry-point pattern from getting-started paid for itself, once its
   dep was declared (#9).
+
+### 12. `data` paths may leave the package — and the repo — silently
+
+*Status: open question for lirk; this repo doesn't rely on it.*
+
+build-format.md says `data` entries are "paths relative to the package
+directory" and says nothing about `..`. In practice:
+
+```
+# cli/BUILD.lirk, //cli:replay_cli_test
+data = ["../tests/golden/data"]       # another package's directory
+$ lirk build //cli:replay_cli_test    ->  cached  //cli:replay_cli_test
+$ echo '{}' > tests/golden/data/zz_probe.json
+$ lirk build //cli:replay_cli_test    ->  built  //cli:replay_cli_test   (fingerprinted: good)
+
+data = ["../../lirk/docs"]            # outside the repo entirely
+$ lirk build //cli:replay_cli_test
+  built  //cli:replay_cli_test
+lirk: 1 built, 12 cached, 0 failed, 0 skipped
+lirk: OK
+```
+
+Cross-package data works and is fingerprinted. But a path escaping the
+repo root is accepted without a word, while `.lirk-root`'s `ignore`
+explicitly rejects absolute and `..` paths "rather than quietly
+clamped". One of the two behaviours is probably unintended; either way
+it's worth documenting. (An out-of-repo input also makes the cache
+depend on files a fresh clone won't have.)
+
+What this repo does instead: `//cli:replay_cli_test` depends on
+`//tests/golden:agent_cases`, the target that owns `tests/golden/data`
+as its `data` — Bazel's filegroup idea. Worth a line in the docs as
+*the* way to share a data directory between packages.

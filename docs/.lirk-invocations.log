@@ -31,3 +31,13 @@
 2026-11-21T10:10:28Z rc=0 secs=13 lirk test //... --force
 2026-11-21T10:13:55Z rc=0 secs=0 lirk fix
 2026-11-21T10:14:05Z rc=0 secs=10 lirk test //...
+2026-11-21T10:20:20Z rc=0 secs=1 lirk fix
+2026-11-21T10:20:21Z rc=0 secs=1 lirk test //render/... //env/...
+2026-11-21T10:20:28Z rc=0 secs=0 lirk build //cli:replay_cli_test
+2026-11-21T10:20:35Z rc=0 secs=0 lirk build //cli:replay_cli_test
+2026-11-21T10:20:35Z rc=0 secs=0 lirk build //cli:replay_cli_test
+2026-11-21T10:20:35Z rc=0 secs=0 lirk build //cli:replay_cli_test
+2026-11-21T10:20:36Z rc=0 secs=1 lirk build //cli:replay_cli_test
+2026-11-21T10:28:29Z rc=0 secs=0 lirk fix
+2026-11-21T10:28:34Z rc=0 secs=5 lirk test //...
+2026-11-21T10:28:36Z rc=0 secs=2 lirk verify --sample 5
