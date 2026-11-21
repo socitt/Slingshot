@@ -21,9 +21,9 @@ this repo, the entry says so.
 | M2 chaos lab | 0 | 6 | 2 | 2 | 10 | 0 | 1 (see #9 — caught by `lirk verify`) |
 | M3 MLP + neuroevolution | 0 | 4 | 1 | 1 | 6 | 0 | 0 |
 | M4 three-body field + M5 replay | 5 | 3 | 3 | 1 | 12 | 0 | 0 |
-| M6 numpy backend | 0 | 4 | 1 | 3 | 8 | 0 | 0 |
+| M6 numpy backend | 0 | 4 | 1 | 2 | 7 | 0 | 0 |
 
-Running total: **51**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 9 exited 1: genuine test/build failures, deliberate probes, and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
+Running total: **50**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 9 exited 1: genuine test/build failures, deliberate probes, and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
