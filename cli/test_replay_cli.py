@@ -19,7 +19,7 @@ def test_selftest():
     assert proc.stdout.strip() == "replay: ok"
 
 
-@pytest.mark.parametrize("task", ["free", "assist", "rendezvous"])
+@pytest.mark.parametrize("task", ["free", "assist", "rendezvous", "tour"])
 def test_plain_replay_of_golden_agent(task):
     proc = run("--task", task, "--plain", "--width", "40")
     assert proc.returncode == 0, proc.stderr

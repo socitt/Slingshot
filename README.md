@@ -30,7 +30,7 @@ gravity assists, and how to test a chaotic system.
 | `nn/` | tiny MLP from scratch; a flat list of floats is the genome |
 | `evolve/` | genetic algorithm and OpenAI-style evolution strategy (ask/tell, seeded) |
 | `npbackend/` | optional numpy batch evaluator (never imported by the core) |
-| `env/` | navigation task (thrust-limited probe, optional N-body field), scoring, training loop |
+| `env/` | navigation task (thrust-limited probe, optional N-body field; fixed targets, moving rendezvous, multi-stop tours), scoring, training loop |
 
 ## Building and testing
 
@@ -78,6 +78,13 @@ an independent cross-check.
    phases of its orbit, the golden agent intercepts it at most of them
    and at 10 of 12 never-seen phases (with 12 training phases an agent
    memorised launch windows: 1/12 held-out).
+8. ✅ The grand tour: a star and four planets; slip past planet A, then
+   catch B, C and D in order. A memoryless net has to handle every leg,
+   because the target switches the moment a planet is caught. After
+   1500 generations the golden agent catches B on 18 of 36 launches and
+   B then C on 10 (score 0.764 vs 0.112 for doing nothing). A second
+   seed flew the first complete tour, all three planets on one launch.
+   Skills appear in stages; the visual explainer charts them.
 
 ## Training
 

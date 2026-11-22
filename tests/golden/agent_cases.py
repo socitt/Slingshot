@@ -30,6 +30,9 @@ CASES = {
     # five bodies, three stops: the long run (~40 min with numpy) is what
     # lets later stages appear; needs numpy to regenerate
     "tour": dict(task="tour", strategy="es", generations=1500, pop=64, seed=1, backend="numpy"),
+    # seed 3: generalises worse (held-out 0.20 vs 0.43) but flew the first
+    # complete grand tour, all three planets on one launch
+    "tour3": dict(task="tour", strategy="es", generations=1500, pop=64, seed=3, backend="numpy"),
 }
 
 

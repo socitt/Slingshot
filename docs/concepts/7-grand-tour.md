@@ -64,3 +64,54 @@ where the population learns the first catch, then a second phase where
 a few genomes start reaching the second planet, and so on. The
 visual explainer's skill-stages chart records exactly that: every 10
 generations, how many of the 64 genomes catch 0, 1, 2 or 3 planets.
+
+## What happened
+
+The golden agent is ES, 64 genomes, 1500 generations (about 40 minutes
+with the numpy backend). Doing nothing scores 0.112; it scores **0.764**.
+Of its 36 launches, 18 catch nothing, 8 catch B, and **10 catch B and
+then C**. Nothing it flies completes the tour.
+
+The population around it tells the more interesting story. Every 10
+generations the replay counted how many of all 2,304 flights (64 genomes
+× 36 launches) caught at least 1, 2 or 3 planets:
+
+| Generation | ≥ 1 planet | ≥ 2 planets | all 3 |
+|---|---|---|---|
+| 0 | 1.5% | 0.1% | 0% |
+| 150 | 27.0% | 2.7% | 0% |
+| 600 | 34.3% | 4.9% | 0% |
+| 900 | 38.8% | 7.6% | 0.1% |
+| 1200 | 41.6% | 10.1% | 0.6% |
+| 1490 | 45.5% | 12.3% | 0.5% |
+
+Three stages, in order:
+
+1. **Catch B.** Fast: past 10% of flights by generation 20, then a long
+   slow climb.
+2. **Catch B, then C.** Slow and steady: it passes 5% only at generation
+   530 and keeps rising to the end.
+3. **The full tour.** Complete tours appear by luck from generation 80,
+   but rarely: in 14 of the first 75 snapshots, then in 71 of the last
+   75. By the end, 12 of the 64 genomes complete the tour on at least one
+   launch.
+
+The kept agent never completes a tour because it is chosen for its
+*average* over all 36 launches, and the genomes that complete one are
+worse on the rest. A second seed (`tour3` in the golden data) shows the
+trade-off from the other side: a higher training score (0.821), one
+complete grand tour (launch 8: watch it with `python3 -m cli.replay
+--task tour --agent tests/golden/data/agents/agent_tour3.json --target 8`),
+much weaker generalisation (held-out 0.20 vs 0.43), and less robust
+flights (a 10⁻¹² nudge moves one of its scores by 7 × 10⁻⁵). In that
+complete tour it catches B at step 151, C at step 177 (they happened to
+be close together on that launch) and D at step 378, and planet C hands
+it +0.37 energy on the way to D: a gravity assist inside a tour.
+
+## Robust paths in a chaotic field
+
+A random network's tour outcomes change under a 10⁻¹⁵ nudge. The trained
+agent's don't: nudged by 10⁻¹², no score moves by more than 3 × 10⁻⁷, no
+stop count changes, and no flight comes within 1.4 × 10⁻⁴ of the
+capture radius. Evolution selected for flights that are reliable as
+well as successful, which is what lets the golden test re-score them.

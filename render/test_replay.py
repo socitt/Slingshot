@@ -68,3 +68,13 @@ def test_hud_reports_assists():
     text = "\n".join(lines)
     assert "REACHED" in text and "gravity assist: +0.40" in text
     assert "fuel [" in text
+
+
+def test_hud_counts_tour_stops():
+    from env.navigation import TOUR
+
+    class R:
+        reached, crashed, out_of_bounds, score, stops_done = False, True, False, 1.2, 2
+        work = []
+    text = "\n".join(hud(R(), {"t": 1.0, "fuel_used": 0.0}, TOUR, 10, 10, 40))
+    assert "CRASHED" in text and "planets caught: 2/3" in text

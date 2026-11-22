@@ -29,8 +29,9 @@ this repo, the entry says so.
 | Experiments, timing check | 0 | 2 | 0 | 1 | 3 | 0 | 0 |
 | lirk main `8b922ed` (docs rewrite) | 0 | 2 | 0 | 0 | 2 | 0 | 0 |
 | M7 rendezvous, export tool, concept docs | 0 | 1 | 1 | 1 | 3 | 0 | 0 |
+| M8 grand tour, learning visuals | 0 | 5 | 3 | 1 | 9 | 0 | 0 |
 
-Running total: **78**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
+Running total: **87**, including one run under a numpy-free venv (logged by hand); 1 more in a throwaway scratch repo for #13 is not counted. 14 exited 1: genuine test/build failures, deliberate probes (4 of them the #14 label-error checks, 1 the 1.0.1 seeding-guard probe), and one `lirk verify` I killed with `| head -1` (SIGPIPE; it exited 1 after 5 s and the cache was intact — every target still `cached` afterwards). None were lirk's fault. (Updated when committing; the log is authoritative.)
 
 ## `lirk verify` results
 
@@ -47,6 +48,7 @@ Running total: **78**, including one run under a numpy-free venv (logged by hand
 | 2026-11-21 | `lirk verify --sample 5` on lirk 1.0.1 (seed 3991276520, 74 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` on 1.0.1 (seed 329176913, 74 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 | 2026-11-21 | `lirk verify --sample 5` on `8b922ed` (seed 2551609340, 68 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
+| 2026-11-22 | `lirk verify --sample 5` (seed 502531328, 69 cached results) | 5 verified, 0 stale, 0 target(s) not cached — OK |
 
 ## Cache-correctness probes
 

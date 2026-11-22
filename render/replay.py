@@ -101,6 +101,9 @@ def hud(result, frame: dict, task, step: int, total: int, width: int) -> list[st
         outcome = ("REACHED" if result.reached else "CRASHED" if result.crashed
                    else "LOST" if result.out_of_bounds else "missed")
         lines.append(f"{outcome}  score {result.score:+.3f}"[:width])
+        stops = getattr(task.targets[0], "stops", None) if task.targets else None
+        if stops is not None:
+            lines.append(f"planets caught: {result.stops_done}/{len(stops)}"[:width])
         if result.work:
             assists = "  ".join(f"{w:+.2f}" for w in result.work)
             lines.append(f"work by body: {assists}"[:width])

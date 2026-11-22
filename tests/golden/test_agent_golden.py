@@ -145,3 +145,55 @@ def test_rendezvous_episodes_are_not_hypersensitive():
         assert abs(a.score - b.score) < 1e-6, t
         margin = min(abs(math.dist(f["probe"], f["target"]) - RENDEZVOUS.target_radius) for f in a.frames)
         assert margin > 1e-7, t
+
+
+# --- milestone 8: the grand tour --------------------------------------
+
+from env.navigation import TOUR  # noqa: E402
+
+
+def _tour_checks(name):
+    g = load_golden(name)
+    net = MLP.from_dict(g["mlp"])
+    assert {k: g[k] for k in CASES[name]} == CASES[name]
+    assert len(g["stops_done"]) == 36
+    assert evaluate(TOUR, net) == pytest.approx(g["score"], abs=1e-6)
+    assert evaluate(TOUR, net, HELDOUT["tour"]) == pytest.approx(g["heldout_score"], abs=1e-6)
+    assert [run_episode(TOUR, net, t).stops_done for t in TOUR.targets] == g["stops_done"]
+    return g, net
+
+
+def test_tour_agent_learned_the_first_two_legs():
+    g, _ = _tour_checks("tour")
+    caught = g["stops_done"]
+    assert sum(c >= 1 for c in caught) >= 15      # of 36 launches: at least planet B
+    assert sum(c >= 2 for c in caught) >= 8       # B and then C
+    assert g["score"] > 0.112 + 0.5               # doing nothing scores 0.112
+    assert sum(c >= 1 for c in g["heldout_stops_done"]) >= 4   # of 12 never-seen launches
+
+
+def test_tour_episodes_are_not_hypersensitive():
+    """Random networks diverge from a 1e-15 nudge in this five-body field
+    (env/test_tour.py). The evolved one flies robust paths: a 1e-12 nudge
+    moves no score by 1e-6 and no flight grazes the capture radius."""
+    import dataclasses
+    import math
+    net = MLP.from_dict(load_golden("tour")["mlp"])
+    nudged = dataclasses.replace(TOUR, start=(TOUR.start[0] + 1e-12, TOUR.start[1]))
+    for t in TOUR.targets + HELDOUT["tour"]:
+        a, b = run_episode(TOUR, net, t, record=True), run_episode(nudged, net, t)
+        assert abs(a.score - b.score) < 1e-6, t
+        assert a.stops_done == b.stops_done, t
+        margin = min(abs(math.dist(f["probe"], f["target"]) - TOUR.target_radius) for f in a.frames)
+        assert margin > 1e-7, t
+
+
+def test_tour3_flies_a_complete_grand_tour():
+    # No hypersensitivity test for tour3: a 1e-12 nudge moves one of its
+    # scores by ~7e-5. It is the less robust, less general of the two.
+    g, net = _tour_checks("tour3")
+    full = [t for t, c in zip(TOUR.targets, g["stops_done"]) if c == 3]
+    assert len(full) >= 1
+    res = run_episode(TOUR, net, full[0])
+    assert res.reached and res.stops_done == 3 and len(res.stop_steps) == 3
+    assert res.stop_steps == sorted(res.stop_steps)
